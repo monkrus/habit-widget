@@ -9,7 +9,7 @@ echo "Habit Streak Widget - Build & Test"
 echo "========================================="
 echo ""
 
-PROJECT_DIR="/home/user/habit-tracker-widget"
+PROJECT_DIR="/home/user/habit-widget"
 cd "$PROJECT_DIR"
 
 # Check if gradlew exists

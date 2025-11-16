@@ -5,7 +5,7 @@ The app is fully built and committed locally. To push to GitHub:
 ## Option 1: Push from this machine
 
 ```bash
-cd /home/user/habit-tracker-widget
+cd /home/user/habit-widget
 
 # If you have GitHub CLI installed:
 gh auth login
@@ -16,7 +16,7 @@ git push -u origin main
 # (will prompt for username and token)
 
 # Or use SSH (if you have SSH key set up):
-git remote set-url origin git@github.com:monkrus/habit-tracker-widget.git
+git remote set-url origin git@github.com:monkrus/habit-widget.git
 git push -u origin main
 ```
 
@@ -24,8 +24,8 @@ git push -u origin main
 
 ```bash
 # On your machine:
-scp -r user@this-server:/home/user/habit-tracker-widget ~/habit-tracker-widget
-cd ~/habit-tracker-widget
+scp -r user@this-server:/home/user/habit-widget ~/habit-widget
+cd ~/habit-widget
 git push -u origin main
 ```
 

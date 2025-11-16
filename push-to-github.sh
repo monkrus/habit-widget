@@ -8,7 +8,7 @@ echo "  Pushing Habit Tracker Widget to GitHub"
 echo "================================================"
 echo ""
 
-cd /home/user/habit-tracker-widget
+cd /home/user/habit-widget
 
 # Check if we're in the right directory
 if [ ! -f "README.md" ]; then

@@ -14,14 +14,14 @@ Step-by-step instructions to build and run Habit Streak Widget.
 
 ```bash
 git clone https://github.com/monkrus/habit-widget.git
-cd habit-tracker-widget
+cd habit-widget
 ```
 
 ### 2. Open in Android Studio
 
 1. Launch Android Studio
 2. **File** → **Open**
-3. Select the `habit-tracker-widget` folder
+3. Select the project folder
 4. Click **OK**
 
 ### 3. Wait for Gradle Sync

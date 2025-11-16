@@ -72,11 +72,11 @@ This **10x reduction in friction** is the difference between 90% adherence and 3
 1. **Clone the repository**
    ```bash
    git clone https://github.com/monkrus/habit-widget.git
-   cd habit-tracker-widget
+   cd habit-widget
    ```
 
 2. **Open in Android Studio**
-   - File → Open → Select the `habit-tracker-widget` directory
+   - File → Open → Select the project directory
 
 3. **Sync Gradle**
    - Android Studio should automatically sync
@@ -204,11 +204,11 @@ MIT License - See LICENSE file for details
 ## Support
 
 - **Issues:** [GitHub Issues](https://github.com/monkrus/habit-widget/issues)
-- **Email:** support@habitstreak.app (update with your email)
+- **Discussions:** [GitHub Discussions](https://github.com/monkrus/habit-widget/discussions)
 
 ## Credits
 
-Developed by [Your Name]
+Developed with ❤️ by the Habit Streak team
 
 ## Acknowledgments
 

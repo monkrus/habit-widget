@@ -101,7 +101,7 @@ habit-tracker-widget/
 
 ```bash
 # Navigate to project
-cd /home/user/habit-tracker-widget
+cd /home/user/habit-widget
 
 # Open in Android Studio
 studio .
@@ -114,7 +114,7 @@ studio .
 ### Push to GitHub
 
 ```bash
-cd /home/user/habit-tracker-widget
+cd /home/user/habit-widget
 git push -u origin main
 ```
 

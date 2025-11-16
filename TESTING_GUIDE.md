@@ -35,7 +35,7 @@ brew install --cask android-studio
 
 1. Launch Android Studio
 2. **File** → **Open**
-3. Navigate to `/home/user/habit-tracker-widget`
+3. Navigate to `/home/user/habit-widget`
 4. Click **OK**
 
 ### C. Wait for Gradle Sync
@@ -116,7 +116,7 @@ brew install --cask android-studio
 **On this machine:**
 
 ```bash
-cd /home/user/habit-tracker-widget
+cd /home/user/habit-widget
 
 # Build debug APK (unsigned, for testing)
 ./gradlew assembleDebug
@@ -171,7 +171,7 @@ Same checklist as Android Studio method above.
 Don't want to run it yet? Just check if the code is valid:
 
 ```bash
-cd /home/user/habit-tracker-widget
+cd /home/user/habit-widget
 
 # Check Kotlin syntax
 ./gradlew compileDebugKotlin
@@ -266,7 +266,7 @@ Most common fix:
 
 ```bash
 # 1. Build APK
-cd /home/user/habit-tracker-widget
+cd /home/user/habit-widget
 ./gradlew assembleDebug
 
 # 2. Enable USB debugging on phone

@@ -60,3 +60,25 @@ local.properties
 
 # Android Profiling
 *.hprof
+
+# Git
+*.bundle
+*.orig
+
+# Backup files
+*.bak
+*.swp
+*.swo
+*~
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Scripts with tokens (security)
+*-token.sh
+deploy-key.*
+
+# Local test files
+test-output/
+screenshots/
