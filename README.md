@@ -71,7 +71,7 @@ This **10x reduction in friction** is the difference between 90% adherence and 3
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/monkrus/habit-tracker-widget.git
+   git clone https://github.com/monkrus/habit-widget.git
    cd habit-tracker-widget
    ```
 
@@ -203,7 +203,7 @@ MIT License - See LICENSE file for details
 
 ## Support
 
-- **Issues:** [GitHub Issues](https://github.com/monkrus/habit-tracker-widget/issues)
+- **Issues:** [GitHub Issues](https://github.com/monkrus/habit-widget/issues)
 - **Email:** support@habitstreak.app (update with your email)
 
 ## Credits

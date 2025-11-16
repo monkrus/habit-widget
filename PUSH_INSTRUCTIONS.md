@@ -31,7 +31,7 @@ git push -u origin main
 
 ## Verify Repository
 
-After pushing, visit: https://github.com/monkrus/habit-tracker-widget
+After pushing, visit: https://github.com/monkrus/habit-widget
 
 You should see:
 - README.md displayed on the home page

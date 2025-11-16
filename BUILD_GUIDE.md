@@ -13,7 +13,7 @@ Step-by-step instructions to build and run Habit Streak Widget.
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/monkrus/habit-tracker-widget.git
+git clone https://github.com/monkrus/habit-widget.git
 cd habit-tracker-widget
 ```
 
