@@ -9,6 +9,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 
@@ -26,14 +27,12 @@ class HabitRepository(private val context: Context) {
     }
 
     suspend fun getHabits(): List<Habit> {
-        var result: List<Habit> = emptyList()
-        context.dataStore.data.collect { preferences ->
+        return context.dataStore.data.map { preferences ->
             val json = preferences[habitsKey] ?: "[]"
             val type = object : TypeToken<List<HabitData>>() {}.type
             val habitDataList: List<HabitData> = gson.fromJson(json, type)
-            result = habitDataList.map { it.toHabit() }
-        }
-        return result
+            habitDataList.map { it.toHabit() }
+        }.first()
     }
 
     suspend fun addHabit(habit: Habit) {
