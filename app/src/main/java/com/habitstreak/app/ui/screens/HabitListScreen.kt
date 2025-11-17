@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,7 +30,9 @@ import kotlinx.coroutines.launch
 fun HabitListScreen(
     onAddHabit: () -> Unit,
     onEditHabit: (String) -> Unit,
-    onUpgradeToPro: () -> Unit
+    onViewStatistics: (String) -> Unit,
+    onUpgradeToPro: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -55,6 +59,9 @@ fun HabitListScreen(
             TopAppBar(
                 title = { Text("My Habits", fontWeight = FontWeight.Bold) },
                 actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Default.Settings, "Settings")
+                    }
                     if (!isPro) {
                         IconButton(onClick = onUpgradeToPro) {
                             Icon(Icons.Default.Star, "Upgrade to Pro", tint = MaterialTheme.colorScheme.primary)
@@ -95,7 +102,8 @@ fun HabitListScreen(
                                     HabitWidgetReceiver.updateAllWidgets(context)
                                 }
                             },
-                            onEdit = { onEditHabit(habit.id) }
+                            onEdit = { onEditHabit(habit.id) },
+                            onViewStats = { onViewStatistics(habit.id) }
                         )
                     }
                 }
@@ -167,69 +175,99 @@ fun ProBanner(onClick: () -> Unit) {
 fun HabitCard(
     habit: Habit,
     onToggle: () -> Unit,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    onViewStats: () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onToggle),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Emoji
-            Text(
-                text = habit.emoji,
-                fontSize = 32.sp,
-                modifier = Modifier.size(48.dp)
-            )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Name and streak info
-            Column(modifier = Modifier.weight(1f)) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .clickable(onClick = onToggle)
+                    .padding(16.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Emoji
                 Text(
-                    text = habit.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    text = habit.emoji,
+                    fontSize = 32.sp,
+                    modifier = Modifier.size(48.dp)
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row {
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // Name and streak info
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Current: ${habit.currentStreak}",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        text = habit.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row {
+                        Text(
+                            text = "Current: ${habit.currentStreak}",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Best: ${habit.longestStreak}",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+
+                // Status indicator
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            color = if (habit.isCompletedToday)
+                                MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(12.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = "Best: ${habit.longestStreak}",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        text = if (habit.isCompletedToday) "✓" else "🔥",
+                        fontSize = 24.sp
                     )
                 }
             }
 
-            // Status indicator
-            Box(
+            // Action buttons
+            Row(
                 modifier = Modifier
-                    .size(48.dp)
-                    .background(
-                        color = if (habit.isCompletedToday)
-                            MaterialTheme.colorScheme.primaryContainer
-                        else MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(12.dp)
-                    ),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = if (habit.isCompletedToday) "✓" else "🔥",
-                    fontSize = 24.sp
-                )
+                OutlinedButton(
+                    onClick = onViewStats,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        Icons.Default.BarChart,
+                        contentDescription = "Statistics",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Stats", fontSize = 14.sp)
+                }
+                OutlinedButton(
+                    onClick = onEdit,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Edit", fontSize = 14.sp)
+                }
             }
         }
     }
