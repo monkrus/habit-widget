@@ -1,20 +1,20 @@
 package com.habitstreak.app.ui.screens
 
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.habitstreak.app.billing.BillingManager
 import com.habitstreak.app.data.PreferencesManager
 import kotlinx.coroutines.launch
 
@@ -26,6 +26,31 @@ fun ProUpgradeScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val preferencesManager = remember { PreferencesManager(context) }
+    val billingManager = remember { BillingManager(context, preferencesManager) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    val purchaseState by billingManager.purchaseState.collectAsState()
+
+    // Handle purchase state changes
+    LaunchedEffect(purchaseState) {
+        when (purchaseState) {
+            is BillingManager.PurchaseState.Success -> {
+                snackbarHostState.showSnackbar("Pro unlocked! Thank you for your support!")
+                onNavigateBack()
+            }
+            is BillingManager.PurchaseState.Error -> {
+                val error = (purchaseState as BillingManager.PurchaseState.Error).message
+                snackbarHostState.showSnackbar("Purchase failed: $error")
+            }
+            else -> {}
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            billingManager.cleanup()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -37,7 +62,8 @@ fun ProUpgradeScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -102,26 +128,40 @@ fun ProUpgradeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Purchase button (simulated for now)
+            // Purchase button
             Button(
                 onClick = {
                     scope.launch {
-                        // In a real app, this would trigger in-app purchase
-                        // For now, just unlock pro features
-                        preferencesManager.setProVersion(true)
-                        onNavigateBack()
+                        val activity = context as? ComponentActivity
+                        if (activity != null) {
+                            billingManager.launchPurchaseFlow(activity)
+                        } else {
+                            snackbarHostState.showSnackbar("Unable to launch purchase flow")
+                        }
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
+                    .height(56.dp),
+                enabled = purchaseState !is BillingManager.PurchaseState.Loading
             ) {
-                Text("Unlock Pro", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                if (purchaseState is BillingManager.PurchaseState.Loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Text("Unlock Pro", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            TextButton(onClick = { /* Restore purchases */ }) {
+            TextButton(
+                onClick = {
+                    billingManager.queryPurchases()
+                }
+            ) {
                 Text("Restore Purchase")
             }
         }

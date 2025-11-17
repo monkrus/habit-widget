@@ -27,59 +27,90 @@ class HabitRepository(private val context: Context) {
     }
 
     suspend fun getHabits(): List<Habit> {
+    claude/quick-project-ideas-019ZMgnyxFmJhgdf6waV9arf
+        return try {
+            val preferences = context.dataStore.data.first()
+
         return context.dataStore.data.map { preferences ->
+        main
             val json = preferences[habitsKey] ?: "[]"
             val type = object : TypeToken<List<HabitData>>() {}.type
             val habitDataList: List<HabitData> = gson.fromJson(json, type)
             habitDataList.map { it.toHabit() }
+       claude/quick-project-ideas-019ZMgnyxFmJhgdf6waV9arf
+        } catch (e: Exception) {
+            emptyList()
+        }
+
         }.first()
+        main
     }
 
-    suspend fun addHabit(habit: Habit) {
-        context.dataStore.edit { preferences ->
-            val currentJson = preferences[habitsKey] ?: "[]"
-            val type = object : TypeToken<List<HabitData>>() {}.type
-            val currentList: MutableList<HabitData> = gson.fromJson(currentJson, type)
-            currentList.add(HabitData.fromHabit(habit))
-            preferences[habitsKey] = gson.toJson(currentList)
-        }
-    }
-
-    suspend fun updateHabit(habit: Habit) {
-        context.dataStore.edit { preferences ->
-            val currentJson = preferences[habitsKey] ?: "[]"
-            val type = object : TypeToken<List<HabitData>>() {}.type
-            val currentList: MutableList<HabitData> = gson.fromJson(currentJson, type)
-            val index = currentList.indexOfFirst { it.id == habit.id }
-            if (index != -1) {
-                currentList[index] = HabitData.fromHabit(habit)
+    suspend fun addHabit(habit: Habit): Result<Unit> {
+        return try {
+            context.dataStore.edit { preferences ->
+                val currentJson = preferences[habitsKey] ?: "[]"
+                val type = object : TypeToken<List<HabitData>>() {}.type
+                val currentList: MutableList<HabitData> = gson.fromJson(currentJson, type)
+                currentList.add(HabitData.fromHabit(habit))
                 preferences[habitsKey] = gson.toJson(currentList)
             }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
-    suspend fun deleteHabit(habitId: String) {
-        context.dataStore.edit { preferences ->
-            val currentJson = preferences[habitsKey] ?: "[]"
-            val type = object : TypeToken<List<HabitData>>() {}.type
-            val currentList: MutableList<HabitData> = gson.fromJson(currentJson, type)
-            currentList.removeIf { it.id == habitId }
-            preferences[habitsKey] = gson.toJson(currentList)
+    suspend fun updateHabit(habit: Habit): Result<Unit> {
+        return try {
+            context.dataStore.edit { preferences ->
+                val currentJson = preferences[habitsKey] ?: "[]"
+                val type = object : TypeToken<List<HabitData>>() {}.type
+                val currentList: MutableList<HabitData> = gson.fromJson(currentJson, type)
+                val index = currentList.indexOfFirst { it.id == habit.id }
+                if (index != -1) {
+                    currentList[index] = HabitData.fromHabit(habit)
+                    preferences[habitsKey] = gson.toJson(currentList)
+                }
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
-    suspend fun toggleHabitToday(habitId: String) {
-        context.dataStore.edit { preferences ->
-            val currentJson = preferences[habitsKey] ?: "[]"
-            val type = object : TypeToken<List<HabitData>>() {}.type
-            val currentList: MutableList<HabitData> = gson.fromJson(currentJson, type)
-            val index = currentList.indexOfFirst { it.id == habitId }
-            if (index != -1) {
-                val habit = currentList[index].toHabit()
-                val updated = habit.toggleToday()
-                currentList[index] = HabitData.fromHabit(updated)
+    suspend fun deleteHabit(habitId: String): Result<Unit> {
+        return try {
+            context.dataStore.edit { preferences ->
+                val currentJson = preferences[habitsKey] ?: "[]"
+                val type = object : TypeToken<List<HabitData>>() {}.type
+                val currentList: MutableList<HabitData> = gson.fromJson(currentJson, type)
+                currentList.removeIf { it.id == habitId }
                 preferences[habitsKey] = gson.toJson(currentList)
             }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun toggleHabitToday(habitId: String): Result<Unit> {
+        return try {
+            context.dataStore.edit { preferences ->
+                val currentJson = preferences[habitsKey] ?: "[]"
+                val type = object : TypeToken<List<HabitData>>() {}.type
+                val currentList: MutableList<HabitData> = gson.fromJson(currentJson, type)
+                val index = currentList.indexOfFirst { it.id == habitId }
+                if (index != -1) {
+                    val habit = currentList[index].toHabit()
+                    val updated = habit.toggleToday()
+                    currentList[index] = HabitData.fromHabit(updated)
+                    preferences[habitsKey] = gson.toJson(currentList)
+                }
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 

@@ -31,13 +31,17 @@ fun AddEditHabitScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repository = remember { HabitRepository(context) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var habitName by remember { mutableStateOf("") }
     var selectedEmoji by remember { mutableStateOf("💧") }
     var existingHabit by remember { mutableStateOf<Habit?>(null) }
     var showEmojiPicker by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
 
     val isEditing = habitId != null
+    val maxNameLength = 30
 
     LaunchedEffect(habitId) {
         if (habitId != null) {
@@ -61,19 +65,14 @@ fun AddEditHabitScreen(
                 },
                 actions = {
                     if (isEditing) {
-                        IconButton(onClick = {
-                            scope.launch {
-                                habitId?.let { repository.deleteHabit(it) }
-                                HabitWidgetReceiver.updateAllWidgets(context)
-                                onNavigateBack()
-                            }
-                        }) {
+                        IconButton(onClick = { showDeleteDialog = true }) {
                             Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -113,11 +112,19 @@ fun AddEditHabitScreen(
             // Habit name input
             OutlinedTextField(
                 value = habitName,
-                onValueChange = { habitName = it },
+                onValueChange = {
+                    if (it.length <= maxNameLength) {
+                        habitName = it
+                    }
+                },
                 label = { Text("Habit Name") },
                 placeholder = { Text("e.g., Drink Water, Exercise") },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                supportingText = {
+                    Text("${habitName.length}/$maxNameLength characters")
+                },
+                isError = habitName.length >= maxNameLength
             )
 
             Spacer(modifier = Modifier.weight(1f))
@@ -127,10 +134,11 @@ fun AddEditHabitScreen(
                 onClick = {
                     scope.launch {
                         if (habitName.isNotBlank()) {
-                            if (isEditing && existingHabit != null) {
+                            isSaving = true
+                            val result = if (isEditing && existingHabit != null) {
                                 repository.updateHabit(
                                     existingHabit!!.copy(
-                                        name = habitName,
+                                        name = habitName.trim(),
                                         emoji = selectedEmoji
                                     )
                                 )
@@ -138,24 +146,85 @@ fun AddEditHabitScreen(
                                 val habits = repository.getHabits()
                                 repository.addHabit(
                                     Habit(
-                                        name = habitName,
+                                        name = habitName.trim(),
                                         emoji = selectedEmoji,
                                         position = habits.size
                                     )
                                 )
                             }
-                            HabitWidgetReceiver.updateAllWidgets(context)
-                            onNavigateBack()
+
+                            result.fold(
+                                onSuccess = {
+                                    HabitWidgetReceiver.updateAllWidgets(context)
+                                    onNavigateBack()
+                                },
+                                onFailure = { error ->
+                                    isSaving = false
+                                    snackbarHostState.showSnackbar(
+                                        message = "Failed to save habit: ${error.message}",
+                                        duration = SnackbarDuration.Short
+                                    )
+                                }
+                            )
                         }
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = habitName.isNotBlank()
+                enabled = habitName.isNotBlank() && !isSaving
             ) {
-                Text("Save", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                if (isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Text("Save", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
             }
+        }
+
+        // Delete confirmation dialog
+        if (showDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                title = { Text("Delete Habit?") },
+                text = { Text("Are you sure you want to delete '${existingHabit?.name}'? This action cannot be undone.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                habitId?.let { id ->
+                                    repository.deleteHabit(id).fold(
+                                        onSuccess = {
+                                            HabitWidgetReceiver.updateAllWidgets(context)
+                                            onNavigateBack()
+                                        },
+                                        onFailure = { error ->
+                                            showDeleteDialog = false
+                                            snackbarHostState.showSnackbar(
+                                                message = "Failed to delete: ${error.message}",
+                                                duration = SnackbarDuration.Short
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("Delete")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }
