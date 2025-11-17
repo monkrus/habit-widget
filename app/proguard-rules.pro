@@ -21,3 +21,45 @@
 # Keep Room
 -keep class * extends androidx.room.RoomDatabase
 -dontwarn androidx.room.paging.**
+
+# Keep Google Play Billing classes
+-keep class com.android.billingclient.** { *; }
+
+# Keep widget receiver
+-keep class com.habitstreak.app.widget.HabitWidgetReceiver { *; }
+-keep class com.habitstreak.app.receiver.BootReceiver { *; }
+
+# Keep BillingManager
+-keep class com.habitstreak.app.billing.BillingManager { *; }
+
+# DataStore
+-keep class androidx.datastore.*.** {*;}
+
+# Coroutines
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+-keepclassmembernames class kotlinx.** {
+    volatile <fields>;
+}
+
+# Keep Parcelable implementations
+-keep class * implements android.os.Parcelable {
+    public static final android.os.Parcelable$Creator *;
+}
+
+# Remove logging in release
+-assumenosideeffects class android.util.Log {
+    public static *** d(...);
+    public static *** v(...);
+    public static *** i(...);
+}
+
+# Keep Compose
+-keep class androidx.compose.** { *; }
+-keep class androidx.activity.ComponentActivity { *; }
+
+# Keep @Composable functions
+-keep @androidx.compose.runtime.Composable class * { *; }
+-keep class * {
+    @androidx.compose.runtime.Composable *;
+}
