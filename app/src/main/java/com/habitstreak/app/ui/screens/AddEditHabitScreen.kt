@@ -34,7 +34,7 @@ fun AddEditHabitScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     var habitName by remember { mutableStateOf("") }
-    var selectedEmoji by remember { mutableStateOf("💧") }
+    var selectedEmoji by remember { mutableStateOf("🎯") }
     var existingHabit by remember { mutableStateOf<Habit?>(null) }
     var showEmojiPicker by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -235,10 +235,26 @@ fun EmojiPicker(
     onEmojiSelected: (String) -> Unit
 ) {
     val emojis = listOf(
-        "💧", "🏃", "📚", "🧘", "🥗", "💪", "🎯", "✍️",
-        "🌅", "🛏️", "🧠", "🎨", "🎵", "🌱", "☕", "🚶",
-        "🏋️", "🧘‍♀️", "🏊", "🚴", "⚽", "🎮", "📝", "💻",
-        "🎸", "📷", "🍎", "🥤", "🌿", "🌸", "⭐", "🔥"
+        // Health & Fitness (modern icons)
+        "💪", "🧘", "🏃‍♂️", "🚴‍♀️", "🏋️‍♀️", "🤸", "🧗", "🏊‍♀️",
+
+        // Wellness & Mind
+        "🧠", "💆", "🛀", "😌", "🧘‍♀️", "💤", "🌙", "✨",
+
+        // Productivity & Learning
+        "📚", "✍️", "💻", "🎯", "📊", "🚀", "💡", "⚡",
+
+        // Food & Nutrition
+        "🥗", "🥑", "🍎", "🥤", "☕", "🥛", "🍵", "🫐",
+
+        // Nature & Environment
+        "🌱", "🌿", "🌸", "🌻", "🌈", "💚", "🌍", "♻️",
+
+        // Creative & Hobbies
+        "🎨", "🎵", "📷", "🎸", "🎭", "📖", "✏️", "🖌️",
+
+        // Symbols & Goals
+        "⭐", "🔥", "💎", "🏆", "✅", "💯", "🎁", "🌟"
     )
 
     Card(
