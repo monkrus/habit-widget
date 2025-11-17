@@ -6,18 +6,24 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.time.LocalDate
 
 private val Context.prefsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 class PreferencesManager(private val context: Context) {
+    private val gson = Gson()
     private val isProKey = booleanPreferencesKey("is_pro")
     private val reminderEnabledKey = booleanPreferencesKey("reminder_enabled")
     private val reminderHourKey = intPreferencesKey("reminder_hour")
     private val reminderMinuteKey = intPreferencesKey("reminder_minute")
+    private val achievementsKey = stringPreferencesKey("achievements")
 
     val isProFlow: Flow<Boolean> = context.prefsDataStore.data.map { preferences ->
         preferences[isProKey] ?: false
@@ -84,6 +90,65 @@ claude/quick-project-ideas-019ZMgnyxFmJhgdf6waV9arf
             Pair(hour, minute)
         } catch (e: Exception) {
             Pair(20, 0)
+        }
+    }
+
+    // Achievement tracking
+    data class UnlockedAchievement(
+        val achievementId: String,
+        val unlockedDate: LocalDate
+    )
+
+    val achievementsFlow: Flow<List<Achievement>> = context.prefsDataStore.data.map { preferences ->
+        val json = preferences[achievementsKey] ?: "[]"
+        val type = object : TypeToken<List<UnlockedAchievement>>() {}.type
+        val unlocked: List<UnlockedAchievement> = gson.fromJson(json, type)
+
+        Achievement.ALL.map { achievement ->
+            val unlockedData = unlocked.find { it.achievementId == achievement.id }
+            achievement.copy(unlockedDate = unlockedData?.unlockedDate)
+        }
+    }
+
+    suspend fun unlockAchievement(achievementId: String): Boolean {
+        val preferences = context.prefsDataStore.data.first()
+        val json = preferences[achievementsKey] ?: "[]"
+        val type = object : TypeToken<List<UnlockedAchievement>>() {}.type
+        val unlocked: MutableList<UnlockedAchievement> = gson.fromJson(json, type)
+
+        // Check if already unlocked
+        if (unlocked.any { it.achievementId == achievementId }) {
+            return false // Already unlocked
+        }
+
+        // Add new achievement
+        unlocked.add(UnlockedAchievement(achievementId, LocalDate.now()))
+
+        // Save
+        context.prefsDataStore.edit { prefs ->
+            prefs[achievementsKey] = gson.toJson(unlocked)
+        }
+
+        return true // Newly unlocked
+    }
+
+    suspend fun getUnlockedAchievements(): List<Achievement> {
+        return try {
+            val preferences = context.prefsDataStore.data.first()
+            val json = preferences[achievementsKey] ?: "[]"
+            val type = object : TypeToken<List<UnlockedAchievement>>() {}.type
+            val unlocked: List<UnlockedAchievement> = gson.fromJson(json, type)
+
+            Achievement.ALL.mapNotNull { achievement ->
+                val unlockedData = unlocked.find { it.achievementId == achievement.id }
+                if (unlockedData != null) {
+                    achievement.copy(unlockedDate = unlockedData.unlockedDate)
+                } else {
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 }

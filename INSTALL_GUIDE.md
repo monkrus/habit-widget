@@ -95,6 +95,14 @@ Then transfer the APK to your phone:
 
 Once installed, test these features:
 
+### NEW! Phase 1 Premium Features:
+- [ ] **Haptic Feedback**: Feel vibration when completing habit (should feel premium!)
+- [ ] **Habit Suggestions**: Open app with no habits → See 10 popular suggestions
+- [ ] **One-tap Add**: Tap "Add" on a suggestion (e.g., "💧 Drink water")
+- [ ] **Achievements**: Complete habit for 7 days → Unlock "Week Warrior 🔥"
+- [ ] **View Achievements**: Settings → Progress → Achievements (see 12 total)
+- [ ] **Milestone Vibration**: Get to 7-day streak → Feel stronger vibration pattern
+
 ### Basic Functionality:
 - [ ] Add a habit
 - [ ] Widget updates immediately

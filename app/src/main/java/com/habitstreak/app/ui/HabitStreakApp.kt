@@ -4,9 +4,12 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.habitstreak.app.ui.screens.AchievementsScreen
 import com.habitstreak.app.ui.screens.HabitListScreen
 import com.habitstreak.app.ui.screens.AddEditHabitScreen
 import com.habitstreak.app.ui.screens.ProUpgradeScreen
+import com.habitstreak.app.ui.screens.StatisticsScreen
+import com.habitstreak.app.ui.screens.SettingsScreen
 
 @Composable
 fun HabitStreakApp() {
@@ -17,7 +20,9 @@ fun HabitStreakApp() {
             HabitListScreen(
                 onAddHabit = { navController.navigate("add_habit") },
                 onEditHabit = { habitId -> navController.navigate("edit_habit/$habitId") },
-                onUpgradeToPro = { navController.navigate("pro_upgrade") }
+                onViewStatistics = { habitId -> navController.navigate("statistics/$habitId") },
+                onUpgradeToPro = { navController.navigate("pro_upgrade") },
+                onOpenSettings = { navController.navigate("settings") }
             )
         }
         composable("add_habit") {
@@ -35,6 +40,26 @@ fun HabitStreakApp() {
         }
         composable("pro_upgrade") {
             ProUpgradeScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable("statistics/{habitId}") { backStackEntry ->
+            val habitId = backStackEntry.arguments?.getString("habitId")
+            if (habitId != null) {
+                StatisticsScreen(
+                    habitId = habitId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+        }
+        composable("settings") {
+            SettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onOpenAchievements = { navController.navigate("achievements") }
+            )
+        }
+        composable("achievements") {
+            AchievementsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

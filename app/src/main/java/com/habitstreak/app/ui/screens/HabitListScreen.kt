@@ -8,18 +8,25 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.habitstreak.app.data.Achievement
+import com.habitstreak.app.data.AchievementChecker
 import com.habitstreak.app.data.Habit
 import com.habitstreak.app.data.HabitRepository
+import com.habitstreak.app.data.HabitSuggestions
 import com.habitstreak.app.data.PreferencesManager
+import com.habitstreak.app.utils.HapticFeedback
 import com.habitstreak.app.widget.HabitWidgetReceiver
 import kotlinx.coroutines.launch
 
@@ -28,7 +35,9 @@ import kotlinx.coroutines.launch
 fun HabitListScreen(
     onAddHabit: () -> Unit,
     onEditHabit: (String) -> Unit,
-    onUpgradeToPro: () -> Unit
+    onViewStatistics: (String) -> Unit,
+    onUpgradeToPro: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -55,6 +64,9 @@ fun HabitListScreen(
             TopAppBar(
                 title = { Text("My Habits", fontWeight = FontWeight.Bold) },
                 actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Default.Settings, "Settings")
+                    }
                     if (!isPro) {
                         IconButton(onClick = onUpgradeToPro) {
                             Icon(Icons.Default.Star, "Upgrade to Pro", tint = MaterialTheme.colorScheme.primary)
@@ -73,7 +85,22 @@ fun HabitListScreen(
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             if (habits.isEmpty()) {
-                EmptyState()
+                EmptyStateWithSuggestions(
+                    onAddSuggestion = { suggestedHabit ->
+                        scope.launch {
+                            repository.addHabit(suggestedHabit.name, suggestedHabit.emoji)
+                            HabitWidgetReceiver.updateAllWidgets(context)
+
+                            // Check habit count achievements
+                            val updatedHabits = repository.getHabits()
+                            val countAchievements = AchievementChecker.checkHabitCountAchievements(updatedHabits.size)
+                            countAchievements.forEach { achievement ->
+                                preferencesManager.unlockAchievement(achievement.id)
+                            }
+                        }
+                    },
+                    onCustomAdd = onAddHabit
+                )
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -91,11 +118,41 @@ fun HabitListScreen(
                             habit = habit,
                             onToggle = {
                                 scope.launch {
+                                    val wasCompleted = habit.isCompletedToday
                                     repository.toggleHabitToday(habit.id)
                                     HabitWidgetReceiver.updateAllWidgets(context)
+
+                                    // Only process achievements and feedback when completing (not unchecking)
+                                    if (!wasCompleted) {
+                                        val newStreak = habit.currentStreak + 1
+
+                                        // Check and unlock streak achievements
+                                        val streakAchievements = AchievementChecker.checkStreakAchievements(newStreak)
+                                        streakAchievements.forEach { achievement ->
+                                            preferencesManager.unlockAchievement(achievement.id)
+                                        }
+
+                                        // Check perfect week/month
+                                        val updatedHabits = repository.getHabits()
+                                        if (AchievementChecker.checkPerfectWeekAchievement(updatedHabits)) {
+                                            preferencesManager.unlockAchievement(Achievement.PERFECT_WEEK.id)
+                                        }
+                                        if (AchievementChecker.checkPerfectMonthAchievement(updatedHabits)) {
+                                            preferencesManager.unlockAchievement(Achievement.PERFECT_MONTH.id)
+                                        }
+
+                                        // Haptic feedback - stronger for milestones
+                                        val milestones = listOf(7, 30, 100, 365)
+                                        if (newStreak in milestones) {
+                                            HapticFeedback.milestoneReached(context)
+                                        } else {
+                                            HapticFeedback.habitCompleted(context)
+                                        }
+                                    }
                                 }
                             },
-                            onEdit = { onEditHabit(habit.id) }
+                            onEdit = { onEditHabit(habit.id) },
+                            onViewStats = { onViewStatistics(habit.id) }
                         )
                     }
                 }
@@ -105,23 +162,116 @@ fun HabitListScreen(
 }
 
 @Composable
-fun EmptyState() {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+fun EmptyStateWithSuggestions(
+    onAddSuggestion: (HabitSuggestions.SuggestedHabit) -> Unit,
+    onCustomAdd: () -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = "No habits yet",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Start Your Journey",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Pick a popular habit or create your own",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                )
+            }
+        }
+
+        item {
+            Text(
+                text = "Popular Habits",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        }
+
+        items(HabitSuggestions.getPopular()) { suggestion ->
+            SuggestionCard(
+                suggestion = suggestion,
+                onAdd = { onAddSuggestion(suggestion) }
+            )
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onCustomAdd,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Create Custom Habit")
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+fun SuggestionCard(
+    suggestion: HabitSuggestions.SuggestedHabit,
+    onAdd: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Tap + to add your first habit",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
-        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = suggestion.emoji,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontSize = 32.sp
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = suggestion.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = suggestion.category,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+            }
+            FilledTonalButton(onClick = onAdd) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Add")
+            }
+        }
     }
 }
 
@@ -167,69 +317,99 @@ fun ProBanner(onClick: () -> Unit) {
 fun HabitCard(
     habit: Habit,
     onToggle: () -> Unit,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    onViewStats: () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onToggle),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Emoji
-            Text(
-                text = habit.emoji,
-                fontSize = 32.sp,
-                modifier = Modifier.size(48.dp)
-            )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Name and streak info
-            Column(modifier = Modifier.weight(1f)) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .clickable(onClick = onToggle)
+                    .padding(16.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Emoji
                 Text(
-                    text = habit.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    text = habit.emoji,
+                    fontSize = 32.sp,
+                    modifier = Modifier.size(48.dp)
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row {
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // Name and streak info
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Current: ${habit.currentStreak}",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        text = habit.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row {
+                        Text(
+                            text = "Current: ${habit.currentStreak}",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Best: ${habit.longestStreak}",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+
+                // Status indicator
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            color = if (habit.isCompletedToday)
+                                MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(12.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = "Best: ${habit.longestStreak}",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        text = if (habit.isCompletedToday) "✓" else "🔥",
+                        fontSize = 24.sp
                     )
                 }
             }
 
-            // Status indicator
-            Box(
+            // Action buttons
+            Row(
                 modifier = Modifier
-                    .size(48.dp)
-                    .background(
-                        color = if (habit.isCompletedToday)
-                            MaterialTheme.colorScheme.primaryContainer
-                        else MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(12.dp)
-                    ),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = if (habit.isCompletedToday) "✓" else "🔥",
-                    fontSize = 24.sp
-                )
+                OutlinedButton(
+                    onClick = onViewStats,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        Icons.Default.BarChart,
+                        contentDescription = "Statistics",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Stats", fontSize = 14.sp)
+                }
+                OutlinedButton(
+                    onClick = onEdit,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Edit", fontSize = 14.sp)
+                }
             }
         }
     }
