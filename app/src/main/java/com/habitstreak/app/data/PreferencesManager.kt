@@ -26,11 +26,17 @@ class PreferencesManager(private val context: Context) {
     }
 
     suspend fun isPro(): Boolean {
+claude/quick-project-ideas-019ZMgnyxFmJhgdf6waV9arf
         return try {
             val preferences = context.prefsDataStore.data.first()
             preferences[isProKey] ?: false
         } catch (e: Exception) {
             false
         }
+
+        return context.prefsDataStore.data.map { preferences ->
+            preferences[isProKey] ?: false
+        }.first()
+ main
     }
 }

@@ -27,15 +27,23 @@ class HabitRepository(private val context: Context) {
     }
 
     suspend fun getHabits(): List<Habit> {
+    claude/quick-project-ideas-019ZMgnyxFmJhgdf6waV9arf
         return try {
             val preferences = context.dataStore.data.first()
+
+        return context.dataStore.data.map { preferences ->
+        main
             val json = preferences[habitsKey] ?: "[]"
             val type = object : TypeToken<List<HabitData>>() {}.type
             val habitDataList: List<HabitData> = gson.fromJson(json, type)
             habitDataList.map { it.toHabit() }
+       claude/quick-project-ideas-019ZMgnyxFmJhgdf6waV9arf
         } catch (e: Exception) {
             emptyList()
         }
+
+        }.first()
+        main
     }
 
     suspend fun addHabit(habit: Habit): Result<Unit> {
