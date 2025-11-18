@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -150,6 +151,33 @@ fun HabitListScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // Show quick-add suggestions for first few habits
+                    if (habits.size < 5) {
+                        item {
+                            QuickAddSuggestions(
+                                existingHabits = habits,
+                                onAddSuggestion = { suggestedHabit ->
+                                    scope.launch {
+                                        repository.addHabit(
+                                            Habit(
+                                                name = suggestedHabit.name,
+                                                emoji = suggestedHabit.emoji
+                                            )
+                                        )
+                                        HabitWidgetReceiver.updateAllWidgets(context)
+
+                                        // Check habit count achievements
+                                        val updatedHabits = repository.getHabits()
+                                        val countAchievements = AchievementChecker.checkHabitCountAchievements(updatedHabits.size)
+                                        countAchievements.forEach { achievement ->
+                                            preferencesManager.unlockAchievement(achievement.id)
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
+
                     if (!isPro && habits.size >= 3) {
                         item {
                             ProBanner(onClick = onUpgradeToPro)
@@ -202,6 +230,69 @@ fun HabitListScreen(
             }
         }
     }
+}
+
+@Composable
+fun QuickAddSuggestions(
+    existingHabits: List<Habit>,
+    onAddSuggestion: (HabitSuggestions.SuggestedHabit) -> Unit
+) {
+    val existingNames = existingHabits.map { it.name.lowercase() }.toSet()
+    val availableSuggestions = HabitSuggestions.getPopular()
+        .filter { it.name.lowercase() !in existingNames }
+        .take(5)
+
+    if (availableSuggestions.isNotEmpty()) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Quick Add",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(availableSuggestions) { suggestion ->
+                    SuggestionChip(
+                        suggestion = suggestion,
+                        onAdd = { onAddSuggestion(suggestion) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SuggestionChip(
+    suggestion: HabitSuggestions.SuggestedHabit,
+    onAdd: () -> Unit
+) {
+    FilterChip(
+        selected = false,
+        onClick = onAdd,
+        label = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(text = suggestion.emoji, fontSize = 18.sp)
+                Text(text = suggestion.name)
+            }
+        },
+        leadingIcon = {
+            Icon(
+                Icons.Default.Add,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    )
 }
 
 @Composable
