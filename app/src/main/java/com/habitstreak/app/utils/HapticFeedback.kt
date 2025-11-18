@@ -16,7 +16,8 @@ object HapticFeedback {
      */
     fun habitCompleted(context: Context) {
         Log.d(TAG, "habitCompleted called")
-        vibrate(context, 50)
+        // Stronger vibration: longer duration and max amplitude
+        vibrateWithAmplitude(context, 100, 255)
     }
 
     /**
@@ -24,8 +25,9 @@ object HapticFeedback {
      */
     fun milestoneReached(context: Context) {
         Log.d(TAG, "milestoneReached called")
-        val timings = longArrayOf(0, 50, 50, 100)
-        val amplitudes = intArrayOf(0, 128, 0, 255)
+        // More pronounced pattern: double-pulse with max amplitude
+        val timings = longArrayOf(0, 100, 100, 150, 100, 100)
+        val amplitudes = intArrayOf(0, 255, 0, 255, 0, 255)
         vibratePattern(context, timings, amplitudes)
     }
 
@@ -48,6 +50,32 @@ object HapticFeedback {
         try {
             vibrator.vibrate(
                 VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE)
+            )
+            Log.d(TAG, "Vibration triggered successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error vibrating", e)
+        }
+    }
+
+    /**
+     * Vibration with custom amplitude
+     */
+    private fun vibrateWithAmplitude(context: Context, duration: Long, amplitude: Int) {
+        val vibrator = getVibrator(context)
+        if (vibrator == null) {
+            Log.e(TAG, "Vibrator is null")
+            return
+        }
+
+        if (!vibrator.hasVibrator()) {
+            Log.e(TAG, "Device has no vibrator")
+            return
+        }
+
+        Log.d(TAG, "Vibrating for ${duration}ms at amplitude $amplitude")
+        try {
+            vibrator.vibrate(
+                VibrationEffect.createOneShot(duration, amplitude)
             )
             Log.d(TAG, "Vibration triggered successfully")
         } catch (e: Exception) {
