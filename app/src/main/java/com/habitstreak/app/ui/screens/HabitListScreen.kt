@@ -50,7 +50,7 @@ fun HabitListScreen(
 
     var habits by remember { mutableStateOf<List<Habit>>(emptyList()) }
     var isPro by remember { mutableStateOf(false) }
-    var showConfetti by remember { mutableStateOf(false) }
+    var confettiTrigger by remember { mutableStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -203,16 +203,18 @@ fun HabitListScreen(
                                         }
 
                                         // Show confetti animation
-                                        showConfetti = true
+                                        confettiTrigger++
 
                                         // Show motivational message
                                         val message = MotivationalMessages.getMessage(
                                             currentStreak = newStreak,
                                             isFirstCompletion = habit.currentStreak == 0
                                         )
+                                        android.util.Log.d("HabitCompletion", "Showing message: $message")
                                         snackbarHostState.showSnackbar(
                                             message = message,
-                                            duration = SnackbarDuration.Short
+                                            duration = SnackbarDuration.Long,
+                                            withDismissAction = true
                                         )
                                     }
                                 }
@@ -280,8 +282,7 @@ fun HabitListScreen(
 
             // Confetti animation overlay
             ConfettiAnimation(
-                trigger = showConfetti,
-                onFinished = { showConfetti = false }
+                trigger = confettiTrigger
             )
         }
     }
@@ -386,15 +387,21 @@ fun HabitCard(
     onEdit: () -> Unit,
     onViewStats: () -> Unit
 ) {
-    // Animated scale effect on tap
+    // Animated scale effect on tap - more dramatic!
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
+        targetValue = if (isPressed) 0.85f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
+            stiffness = Spring.StiffnessMedium
         ),
-        label = "scale"
+        label = "scale",
+        finishedListener = {
+            // Auto-reset after animation completes
+            if (it == 0.85f) {
+                isPressed = false
+            }
+        }
     )
 
     // Streak emoji and color
@@ -419,13 +426,9 @@ fun HabitCard(
                 modifier = Modifier
                     .clickable(
                         onClick = {
+                            android.util.Log.d("HabitCard", "Card clicked, setting isPressed = true")
                             isPressed = true
                             onToggle()
-                            // Reset pressed state after animation
-                            kotlinx.coroutines.GlobalScope.launch {
-                                kotlinx.coroutines.delay(150)
-                                isPressed = false
-                            }
                         }
                     )
                     .padding(16.dp)

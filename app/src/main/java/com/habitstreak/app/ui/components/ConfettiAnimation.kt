@@ -31,8 +31,7 @@ data class ConfettiParticle(
  */
 @Composable
 fun ConfettiAnimation(
-    trigger: Boolean,
-    onFinished: () -> Unit = {}
+    trigger: Int
 ) {
     var particles by remember { mutableStateOf<List<ConfettiParticle>>(emptyList()) }
     var isAnimating by remember { mutableStateOf(false) }
@@ -40,7 +39,8 @@ fun ConfettiAnimation(
 
     // Use LaunchedEffect to start animation when triggered
     LaunchedEffect(trigger) {
-        if (trigger && !isAnimating) {
+        if (trigger > 0) {
+            android.util.Log.d("Confetti", "Trigger changed to: $trigger, starting animation")
             isAnimating = true
             animationStartTime = System.currentTimeMillis()
 
@@ -55,27 +55,29 @@ fun ConfettiAnimation(
                 Color(0xFF06FFA5)  // Green
             )
 
-            particles = List(50) {
+            particles = List(80) {
                 val angle = Random.nextFloat() * 2 * Math.PI.toFloat()
-                val speed = Random.nextFloat() * 8 + 5
+                val speed = Random.nextFloat() * 10 + 6
 
                 ConfettiParticle(
                     x = 0.5f, // Start from center
                     y = 0.5f,
                     velocityX = cos(angle) * speed,
-                    velocityY = sin(angle) * speed - 3, // Upward bias
+                    velocityY = sin(angle) * speed - 4, // Upward bias
                     color = colors.random(),
                     rotation = Random.nextFloat() * 360,
-                    rotationSpeed = Random.nextFloat() * 15 - 7.5f,
-                    size = Random.nextFloat() * 12 + 6
+                    rotationSpeed = Random.nextFloat() * 20 - 10f,
+                    size = Random.nextFloat() * 16 + 8
                 )
             }
 
+            android.util.Log.d("Confetti", "Created ${particles.size} particles")
+
             // Clear after animation duration
-            kotlinx.coroutines.delay(2500)
+            kotlinx.coroutines.delay(3000)
             particles = emptyList()
             isAnimating = false
-            onFinished()
+            android.util.Log.d("Confetti", "Animation finished")
         }
     }
 
