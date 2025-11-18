@@ -87,7 +87,12 @@ fun HabitListScreen(
                 EmptyStateWithSuggestions(
                     onAddSuggestion = { suggestedHabit ->
                         scope.launch {
-                            repository.addHabit(suggestedHabit.name, suggestedHabit.emoji)
+                            repository.addHabit(
+                                Habit(
+                                    name = suggestedHabit.name,
+                                    emoji = suggestedHabit.emoji
+                                )
+                            )
                             HabitWidgetReceiver.updateAllWidgets(context)
 
                             // Check habit count achievements
