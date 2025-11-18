@@ -198,6 +198,60 @@ fun HabitListScreen(
                             onViewStats = { onViewStatistics(habit.id) }
                         )
                     }
+
+                    // Show big suggestion cards (filtered by existing habits)
+                    if (isPro || habits.size < 3) {
+                        val existingNames = habits.map { it.name.lowercase() }.toSet()
+                        val availableSuggestions = HabitSuggestions.getPopular()
+                            .filter { it.name.lowercase() !in existingNames }
+
+                        if (availableSuggestions.isNotEmpty()) {
+                            item {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Add More Habits",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                )
+                            }
+
+                            items(availableSuggestions) { suggestion ->
+                                SuggestionCardLarge(
+                                    suggestion = suggestion,
+                                    onAdd = {
+                                        scope.launch {
+                                            repository.addHabit(
+                                                Habit(
+                                                    name = suggestion.name,
+                                                    emoji = suggestion.emoji
+                                                )
+                                            )
+                                            HabitWidgetReceiver.updateAllWidgets(context)
+
+                                            // Check habit count achievements
+                                            val updatedHabits = repository.getHabits()
+                                            val countAchievements = AchievementChecker.checkHabitCountAchievements(updatedHabits.size)
+                                            countAchievements.forEach { achievement ->
+                                                preferencesManager.unlockAchievement(achievement.id)
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+
+                            item {
+                                OutlinedButton(
+                                    onClick = onAddHabit,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Create Custom Habit")
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
