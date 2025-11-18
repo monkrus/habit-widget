@@ -75,7 +75,8 @@ fun HabitListScreen(
             )
         },
         floatingActionButton = {
-            if (isPro || habits.size < 3) {
+            // Only show FAB when there are existing habits
+            if (habits.isNotEmpty() && (isPro || habits.size < 3)) {
                 FloatingActionButton(onClick = onAddHabit) {
                     Icon(Icons.Default.Add, "Add Habit")
                 }
