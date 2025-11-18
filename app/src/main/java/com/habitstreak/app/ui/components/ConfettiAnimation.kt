@@ -35,22 +35,15 @@ fun ConfettiAnimation(
     onFinished: () -> Unit = {}
 ) {
     var particles by remember { mutableStateOf<List<ConfettiParticle>>(emptyList()) }
-    val infiniteTransition = rememberInfiniteTransition(label = "confetti")
+    var isAnimating by remember { mutableStateOf(false) }
+    var animationStartTime by remember { mutableStateOf(0L) }
 
-    // Animation progress
-    val animationProgress by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "progress"
-    )
-
-    // Generate particles when triggered
+    // Use LaunchedEffect to start animation when triggered
     LaunchedEffect(trigger) {
-        if (trigger) {
+        if (trigger && !isAnimating) {
+            isAnimating = true
+            animationStartTime = System.currentTimeMillis()
+
             val colors = listOf(
                 Color(0xFFFF6B6B), // Red
                 Color(0xFF4ECDC4), // Teal
@@ -62,52 +55,67 @@ fun ConfettiAnimation(
                 Color(0xFF06FFA5)  // Green
             )
 
-            particles = List(30) {
+            particles = List(50) {
                 val angle = Random.nextFloat() * 2 * Math.PI.toFloat()
-                val speed = Random.nextFloat() * 5 + 3
+                val speed = Random.nextFloat() * 8 + 5
 
                 ConfettiParticle(
                     x = 0.5f, // Start from center
                     y = 0.5f,
                     velocityX = cos(angle) * speed,
-                    velocityY = sin(angle) * speed - 2, // Slight upward bias
+                    velocityY = sin(angle) * speed - 3, // Upward bias
                     color = colors.random(),
                     rotation = Random.nextFloat() * 360,
-                    rotationSpeed = Random.nextFloat() * 10 - 5,
-                    size = Random.nextFloat() * 8 + 4
+                    rotationSpeed = Random.nextFloat() * 15 - 7.5f,
+                    size = Random.nextFloat() * 12 + 6
                 )
             }
 
-            // Clear particles after animation
-            kotlinx.coroutines.delay(2000)
+            // Clear after animation duration
+            kotlinx.coroutines.delay(2500)
             particles = emptyList()
+            isAnimating = false
             onFinished()
         }
     }
 
     if (particles.isNotEmpty()) {
+        // Continuous recomposition for animation
+        var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
+
+        LaunchedEffect(Unit) {
+            while (isAnimating) {
+                currentTime = System.currentTimeMillis()
+                kotlinx.coroutines.delay(16) // ~60 FPS
+            }
+        }
+
+        val progress = ((currentTime - animationStartTime) / 2500f).coerceIn(0f, 1f)
+
         Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
             val height = size.height
-            val gravity = 0.2f
+            val gravity = 0.15f
 
             particles.forEach { particle ->
-                val progress = animationProgress
-
                 // Calculate position with physics
-                val x = (particle.x * width) + (particle.velocityX * progress * 100)
+                val x = (particle.x * width) + (particle.velocityX * progress * 150)
                 val y = (particle.y * height) +
-                        (particle.velocityY * progress * 100) +
-                        (gravity * progress * progress * 500)
+                        (particle.velocityY * progress * 150) +
+                        (gravity * progress * progress * 800)
 
                 // Calculate rotation
                 val rotation = particle.rotation + (particle.rotationSpeed * progress * 360)
 
-                // Fade out towards the end
-                val alpha = (1f - progress).coerceIn(0f, 1f)
+                // Fade out in last 30% of animation
+                val alpha = if (progress > 0.7f) {
+                    (1f - (progress - 0.7f) / 0.3f).coerceIn(0f, 1f)
+                } else {
+                    1f
+                }
 
-                // Only draw if still visible on screen
-                if (x in 0f..width && y in 0f..height) {
+                // Draw particle
+                if (alpha > 0.01f) {
                     rotate(rotation, pivot = Offset(x, y)) {
                         drawRect(
                             color = particle.color.copy(alpha = alpha),
