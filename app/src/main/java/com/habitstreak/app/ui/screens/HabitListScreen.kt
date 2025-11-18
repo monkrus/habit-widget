@@ -84,27 +84,65 @@ fun HabitListScreen(
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             if (habits.isEmpty()) {
-                EmptyStateWithSuggestions(
-                    onAddSuggestion = { suggestedHabit ->
-                        scope.launch {
-                            repository.addHabit(
-                                Habit(
-                                    name = suggestedHabit.name,
-                                    emoji = suggestedHabit.emoji
-                                )
-                            )
-                            HabitWidgetReceiver.updateAllWidgets(context)
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Start Your Journey",
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Tap a habit below to get started",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                            // Check habit count achievements
-                            val updatedHabits = repository.getHabits()
-                            val countAchievements = AchievementChecker.checkHabitCountAchievements(updatedHabits.size)
-                            countAchievements.forEach { achievement ->
-                                preferencesManager.unlockAchievement(achievement.id)
-                            }
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        items(HabitSuggestions.getPopular()) { suggestion ->
+                            SuggestionCardLarge(
+                                suggestion = suggestion,
+                                onAdd = {
+                                    scope.launch {
+                                        repository.addHabit(
+                                            Habit(
+                                                name = suggestion.name,
+                                                emoji = suggestion.emoji
+                                            )
+                                        )
+                                        HabitWidgetReceiver.updateAllWidgets(context)
+
+                                        // Check habit count achievements
+                                        val updatedHabits = repository.getHabits()
+                                        val countAchievements = AchievementChecker.checkHabitCountAchievements(updatedHabits.size)
+                                        countAchievements.forEach { achievement ->
+                                            preferencesManager.unlockAchievement(achievement.id)
+                                        }
+                                    }
+                                }
+                            )
                         }
-                    },
-                    onCustomAdd = onAddHabit
-                )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedButton(
+                        onClick = onAddHabit,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Create Custom Habit")
+                    }
+                }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -166,115 +204,55 @@ fun HabitListScreen(
 }
 
 @Composable
-fun EmptyStateWithSuggestions(
-    onAddSuggestion: (HabitSuggestions.SuggestedHabit) -> Unit,
-    onCustomAdd: () -> Unit
-) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Start Your Journey",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Pick a popular habit or create your own",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                )
-            }
-        }
-
-        item {
-            Text(
-                text = "Popular Habits",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-        }
-
-        items(HabitSuggestions.getPopular()) { suggestion ->
-            SuggestionCard(
-                suggestion = suggestion,
-                onAdd = { onAddSuggestion(suggestion) }
-            )
-        }
-
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = onCustomAdd,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Create Custom Habit")
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-    }
-}
-
-@Composable
-fun SuggestionCard(
+fun SuggestionCardLarge(
     suggestion: HabitSuggestions.SuggestedHabit,
     onAdd: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onAdd),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
+            // Emoji
+            Text(
+                text = suggestion.emoji,
+                fontSize = 40.sp,
+                modifier = Modifier.size(56.dp)
+            )
+
+            // Text content
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = suggestion.emoji,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontSize = 32.sp
+                    text = suggestion.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(
-                        text = suggestion.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = suggestion.category,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
+                Text(
+                    text = "Tap to add",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                )
             }
-            FilledTonalButton(onClick = onAdd) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Add")
-            }
+
+            // Add icon
+            Icon(
+                Icons.Default.Add,
+                contentDescription = "Add habit",
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(32.dp)
+            )
         }
     }
 }
