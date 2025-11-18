@@ -13,7 +13,6 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -88,7 +87,12 @@ fun HabitListScreen(
                 EmptyStateWithSuggestions(
                     onAddSuggestion = { suggestedHabit ->
                         scope.launch {
-                            repository.addHabit(suggestedHabit.name, suggestedHabit.emoji)
+                            repository.addHabit(
+                                Habit(
+                                    name = suggestedHabit.name,
+                                    emoji = suggestedHabit.emoji
+                                )
+                            )
                             HabitWidgetReceiver.updateAllWidgets(context)
 
                             // Check habit count achievements
