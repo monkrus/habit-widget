@@ -16,8 +16,8 @@ object HapticFeedback {
      */
     fun habitCompleted(context: Context) {
         Log.d(TAG, "habitCompleted called")
-        // Stronger vibration: longer duration and max amplitude
-        vibrateWithAmplitude(context, 100, 255)
+        // VERY STRONG vibration: longer duration and max amplitude
+        vibrateWithAmplitude(context, 200, 255)
     }
 
     /**

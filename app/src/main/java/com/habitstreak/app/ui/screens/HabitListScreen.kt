@@ -1,5 +1,6 @@
 package com.habitstreak.app.ui.screens
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,6 +16,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -25,7 +28,9 @@ import com.habitstreak.app.data.Habit
 import com.habitstreak.app.data.HabitRepository
 import com.habitstreak.app.data.HabitSuggestions
 import com.habitstreak.app.data.PreferencesManager
+import com.habitstreak.app.ui.components.ConfettiAnimation
 import com.habitstreak.app.utils.HapticFeedback
+import com.habitstreak.app.utils.MotivationalMessages
 import com.habitstreak.app.widget.HabitWidgetReceiver
 import kotlinx.coroutines.launch
 
@@ -45,6 +50,8 @@ fun HabitListScreen(
 
     var habits by remember { mutableStateOf<List<Habit>>(emptyList()) }
     var isPro by remember { mutableStateOf(false) }
+    var confettiTrigger by remember { mutableStateOf(0) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         repository.habitsFlow.collect { habitList ->
@@ -81,6 +88,9 @@ fun HabitListScreen(
                     Icon(Icons.Default.Add, "Add Habit")
                 }
             }
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
         }
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
@@ -191,6 +201,21 @@ fun HabitListScreen(
                                         } else {
                                             HapticFeedback.habitCompleted(context)
                                         }
+
+                                        // Show confetti animation
+                                        confettiTrigger++
+
+                                        // Show motivational message
+                                        val message = MotivationalMessages.getMessage(
+                                            currentStreak = newStreak,
+                                            isFirstCompletion = habit.currentStreak == 0
+                                        )
+                                        android.util.Log.d("HabitCompletion", "Showing message: $message")
+                                        snackbarHostState.showSnackbar(
+                                            message = message,
+                                            duration = SnackbarDuration.Long,
+                                            withDismissAction = true
+                                        )
                                     }
                                 }
                             },
@@ -254,6 +279,11 @@ fun HabitListScreen(
                     }
                 }
             }
+
+            // Confetti animation overlay
+            ConfettiAnimation(
+                trigger = confettiTrigger
+            )
         }
     }
 }
@@ -357,15 +387,50 @@ fun HabitCard(
     onEdit: () -> Unit,
     onViewStats: () -> Unit
 ) {
+    // Animated scale effect on tap - more dramatic!
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.85f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "scale",
+        finishedListener = {
+            // Auto-reset after animation completes
+            if (it == 0.85f) {
+                isPressed = false
+            }
+        }
+    )
+
+    // Streak emoji and color
+    val streakEmoji = MotivationalMessages.getStreakEmoji(habit.currentStreak)
+    val streakSize = MotivationalMessages.getFireSize(habit.currentStreak)
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scale),
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (habit.isCompletedToday)
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            else
+                MaterialTheme.colorScheme.surface
+        )
     ) {
         Column {
             Row(
                 modifier = Modifier
-                    .clickable(onClick = onToggle)
+                    .clickable(
+                        onClick = {
+                            android.util.Log.d("HabitCard", "Card clicked, setting isPressed = true")
+                            isPressed = true
+                            onToggle()
+                        }
+                    )
                     .padding(16.dp)
                     .fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -387,11 +452,22 @@ fun HabitCard(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Row {
+
+                    // Enhanced streak display with emoji
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Current: ${habit.currentStreak}",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            text = streakEmoji,
+                            fontSize = (16 * streakSize).sp,
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                        Text(
+                            text = "${habit.currentStreak} day${if (habit.currentStreak != 1) "s" else ""}",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (habit.currentStreak >= 7)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
