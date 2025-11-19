@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
+import timber.log.Timber
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
@@ -40,7 +41,7 @@ fun ConfettiAnimation(
     // Use LaunchedEffect to start animation when triggered
     LaunchedEffect(trigger) {
         if (trigger > 0) {
-            android.util.Log.d("Confetti", "Trigger changed to: $trigger, starting animation")
+            Timber.d("Trigger changed to: $trigger, starting animation")
             isAnimating = true
             animationStartTime = System.currentTimeMillis()
 
@@ -71,13 +72,13 @@ fun ConfettiAnimation(
                 )
             }
 
-            android.util.Log.d("Confetti", "Created ${particles.size} particles")
+            Timber.d("Created ${particles.size} particles")
 
             // Clear after animation duration
             kotlinx.coroutines.delay(3000)
             particles = emptyList()
             isAnimating = false
-            android.util.Log.d("Confetti", "Animation finished")
+            Timber.d("Animation finished")
         }
     }
 

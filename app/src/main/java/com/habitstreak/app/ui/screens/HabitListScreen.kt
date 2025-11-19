@@ -8,10 +8,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
@@ -31,10 +34,14 @@ import com.habitstreak.app.data.HabitRepository
 import com.habitstreak.app.data.HabitSuggestions
 import com.habitstreak.app.data.PreferencesManager
 import com.habitstreak.app.ui.components.ConfettiAnimation
+import com.habitstreak.app.utils.AppConfig
 import com.habitstreak.app.utils.HapticFeedback
 import com.habitstreak.app.utils.MotivationalMessages
 import com.habitstreak.app.widget.HabitWidgetReceiver
 import kotlinx.coroutines.launch
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
+import timber.log.Timber
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,6 +60,7 @@ fun HabitListScreen(
     var habits by remember { mutableStateOf<List<Habit>>(emptyList()) }
     var isPro by remember { mutableStateOf(false) }
     var confettiTrigger by remember { mutableStateOf(0) }
+    var isReorderMode by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -72,6 +80,25 @@ fun HabitListScreen(
             TopAppBar(
                 title = { Text("My Habits", fontWeight = FontWeight.Bold) },
                 actions = {
+                    // Reorder mode toggle (only show when there are 2+ habits)
+                    if (habits.size >= 2) {
+                        IconButton(onClick = {
+                            isReorderMode = !isReorderMode
+                            if (!isReorderMode) {
+                                // Save order when exiting reorder mode
+                                scope.launch {
+                                    repository.reorderHabits(habits)
+                                    HabitWidgetReceiver.updateAllWidgets(context)
+                                }
+                            }
+                        }) {
+                            Icon(
+                                if (isReorderMode) Icons.Default.Check else Icons.Default.DragHandle,
+                                if (isReorderMode) "Done" else "Reorder",
+                                tint = if (isReorderMode) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                            )
+                        }
+                    }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Default.Settings, "Settings")
                     }
@@ -85,7 +112,7 @@ fun HabitListScreen(
         },
         floatingActionButton = {
             // Only show FAB when there are existing habits
-            if (habits.isNotEmpty() && (isPro || habits.size < 3)) {
+            if (habits.isNotEmpty() && (isPro || habits.size < AppConfig.FREE_HABIT_LIMIT)) {
                 FloatingActionButton(onClick = onAddHabit) {
                     Icon(Icons.Default.Add, "Add Habit")
                 }
@@ -157,7 +184,16 @@ fun HabitListScreen(
                     }
                 }
             } else {
+                val lazyListState = rememberLazyListState()
+                val reorderableLazyListState = rememberReorderableLazyListState(lazyListState) { from, to ->
+                    // Update the habits list when items are reordered
+                    habits = habits.toMutableList().apply {
+                        add(to.index, removeAt(from.index))
+                    }
+                }
+
                 LazyColumn(
+                    state = lazyListState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -167,13 +203,14 @@ fun HabitListScreen(
                         DailyProgressCard(habits = habits)
                     }
 
-                    if (!isPro && habits.size >= 3) {
+                    if (!isPro && habits.size >= AppConfig.FREE_HABIT_LIMIT) {
                         item {
                             ProBanner(onClick = onUpgradeToPro)
                         }
                     }
 
                     items(habits, key = { it.id }) { habit ->
+                        ReorderableItem(reorderableLazyListState, key = habit.id) { isDragging ->
                         HabitCard(
                             habit = habit,
                             onToggle = {
@@ -201,9 +238,14 @@ fun HabitListScreen(
                                             preferencesManager.unlockAchievement(Achievement.PERFECT_MONTH.id)
                                         }
 
+                                        // Check comeback kid achievement
+                                        val updatedHabit = updatedHabits.find { it.id == habit.id }
+                                        if (updatedHabit != null && AchievementChecker.checkComebackKidAchievement(updatedHabit)) {
+                                            preferencesManager.unlockAchievement(Achievement.COMEBACK_KID.id)
+                                        }
+
                                         // Haptic feedback - stronger for milestones
-                                        val milestones = listOf(7, 30, 100, 365)
-                                        if (newStreak in milestones) {
+                                        if (newStreak in AppConfig.MILESTONE_STREAKS) {
                                             HapticFeedback.milestoneReached(context)
                                         } else {
                                             HapticFeedback.habitCompleted(context)
@@ -217,7 +259,7 @@ fun HabitListScreen(
                                             currentStreak = newStreak,
                                             isFirstCompletion = habit.currentStreak == 0
                                         )
-                                        android.util.Log.d("HabitCompletion", "Showing message: $message")
+                                        Timber.d("Showing message: $message")
                                         snackbarHostState.showSnackbar(
                                             message = message,
                                             duration = SnackbarDuration.Long,
@@ -227,12 +269,15 @@ fun HabitListScreen(
                                 }
                             },
                             onEdit = { onEditHabit(habit.id) },
-                            onViewStats = { onViewStatistics(habit.id) }
+                            onViewStats = { onViewStatistics(habit.id) },
+                            isReorderMode = isReorderMode,
+                            reorderableState = reorderableLazyListState
                         )
+                        }
                     }
 
                     // Show big suggestion cards (filtered by existing habits)
-                    if (isPro || habits.size < 3) {
+                    if (isPro || habits.size < AppConfig.FREE_HABIT_LIMIT) {
                         val existingNames = habits.map { it.name.lowercase() }.toSet()
                         val availableSuggestions = HabitSuggestions.getPopular()
                             .filter { it.name.lowercase() !in existingNames }
@@ -466,7 +511,7 @@ fun ProBanner(onClick: () -> Unit) {
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "Free version limited to 3 habits",
+                    "Free version limited to ${AppConfig.FREE_HABIT_LIMIT} habits",
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
@@ -485,7 +530,9 @@ fun HabitCard(
     habit: Habit,
     onToggle: () -> Unit,
     onEdit: () -> Unit,
-    onViewStats: () -> Unit
+    onViewStats: () -> Unit,
+    isReorderMode: Boolean = false,
+    reorderableState: sh.calvin.reorderable.ReorderableLazyListState? = null
 ) {
     // Animated scale effect on tap - more dramatic!
     var isPressed by remember { mutableStateOf(false) }
@@ -535,8 +582,9 @@ fun HabitCard(
             Row(
                 modifier = Modifier
                     .clickable(
+                        enabled = !isReorderMode,
                         onClick = {
-                            android.util.Log.d("HabitCard", "Card clicked, setting isPressed = true")
+                            Timber.d("Card clicked, setting isPressed = true")
                             isPressed = true
                             onToggle()
                         }
@@ -545,6 +593,18 @@ fun HabitCard(
                     .fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Drag handle (shown in reorder mode)
+                if (isReorderMode && reorderableState != null) {
+                    Icon(
+                        Icons.Default.DragHandle,
+                        contentDescription = "Drag to reorder",
+                        modifier = Modifier
+                            .size(32.dp)
+                            .padding(end = 8.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
                 // Emoji
                 Text(
                     text = habit.emoji,
@@ -613,18 +673,19 @@ fun HabitCard(
                 }
             }
 
-            // Action buttons
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = onViewStats,
-                    modifier = Modifier.weight(1f)
+            // Action buttons (hidden in reorder mode)
+            if (!isReorderMode) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    OutlinedButton(
+                        onClick = onViewStats,
+                        modifier = Modifier.weight(1f)
+                    ) {
                     Icon(
                         Icons.Default.BarChart,
                         contentDescription = "Statistics",
@@ -639,6 +700,7 @@ fun HabitCard(
                 ) {
                     Text("Edit", fontSize = 14.sp)
                 }
+            }
             }
         }
     }

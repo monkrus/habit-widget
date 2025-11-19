@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.habitstreak.app.data.Habit
 import com.habitstreak.app.data.HabitRepository
+import com.habitstreak.app.utils.AppConfig
 import com.habitstreak.app.widget.HabitWidgetReceiver
 import kotlinx.coroutines.launch
 
@@ -41,7 +42,6 @@ fun AddEditHabitScreen(
     var isSaving by remember { mutableStateOf(false) }
 
     val isEditing = habitId != null
-    val maxNameLength = 30
 
     LaunchedEffect(habitId) {
         if (habitId != null) {
@@ -113,7 +113,7 @@ fun AddEditHabitScreen(
             OutlinedTextField(
                 value = habitName,
                 onValueChange = {
-                    if (it.length <= maxNameLength) {
+                    if (it.length <= AppConfig.HABIT_NAME_MAX_LENGTH) {
                         habitName = it
                     }
                 },
@@ -122,9 +122,9 @@ fun AddEditHabitScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 supportingText = {
-                    Text("${habitName.length}/$maxNameLength characters")
+                    Text("${habitName.length}/${AppConfig.HABIT_NAME_MAX_LENGTH} characters")
                 },
-                isError = habitName.length >= maxNameLength
+                isError = habitName.length >= AppConfig.HABIT_NAME_MAX_LENGTH
             )
 
             Spacer(modifier = Modifier.weight(1f))
@@ -134,6 +134,20 @@ fun AddEditHabitScreen(
                 onClick = {
                     scope.launch {
                         if (habitName.isNotBlank()) {
+                            // Check for duplicate habit names
+                            val isDuplicate = repository.isDuplicateHabitName(
+                                habitName.trim(),
+                                excludeId = existingHabit?.id
+                            )
+
+                            if (isDuplicate) {
+                                snackbarHostState.showSnackbar(
+                                    message = "A habit with this name already exists",
+                                    duration = SnackbarDuration.Short
+                                )
+                                return@launch
+                            }
+
                             isSaving = true
                             val result = if (isEditing && existingHabit != null) {
                                 repository.updateHabit(

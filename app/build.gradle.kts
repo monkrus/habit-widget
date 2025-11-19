@@ -91,6 +91,12 @@ dependencies {
     // Google Play Billing
     implementation("com.android.billingclient:billing-ktx:6.1.0")
 
+    // Timber for logging
+    implementation("com.jakewharton.timber:timber:5.0.1")
+
+    // Drag and drop reorderable list
+    implementation("sh.calvin.reorderable:reorderable:1.3.3")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")

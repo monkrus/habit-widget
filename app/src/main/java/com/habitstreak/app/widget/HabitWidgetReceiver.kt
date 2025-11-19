@@ -12,6 +12,7 @@ import com.habitstreak.app.MainActivity
 import com.habitstreak.app.R
 import com.habitstreak.app.data.Habit
 import com.habitstreak.app.data.HabitRepository
+import com.habitstreak.app.utils.AppConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -62,7 +63,7 @@ class HabitWidgetReceiver : AppWidgetProvider() {
         ) {
             CoroutineScope(Dispatchers.IO).launch {
                 val repository = HabitRepository(context)
-                val habits = repository.getHabits().sortedBy { it.position }.take(5)
+                val habits = repository.getHabits().sortedBy { it.position }.take(AppConfig.WIDGET_HABIT_LIMIT)
 
                 val views = RemoteViews(context.packageName, R.layout.widget_layout)
 
