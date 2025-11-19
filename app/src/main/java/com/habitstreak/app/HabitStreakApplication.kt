@@ -1,6 +1,7 @@
 package com.habitstreak.app
 
 import android.app.Application
+import com.habitstreak.app.BuildConfig
 import timber.log.Timber
 
 class HabitStreakApplication : Application() {
