@@ -35,10 +35,10 @@ class AchievementTest {
     }
 
     @Test
-    fun `test CENTURY achievement for streak of 100`() {
+    fun `test CENTURY_CLUB achievement for streak of 100`() {
         val achievements = AchievementChecker.checkStreakAchievements(100)
 
-        assertTrue(achievements.contains(Achievement.CENTURY))
+        assertTrue(achievements.contains(Achievement.CENTURY_CLUB))
     }
 
     @Test
