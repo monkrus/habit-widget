@@ -1,6 +1,8 @@
 package com.habitstreak.app.ui.screens
 
 import androidx.compose.animation.core.*
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -160,6 +162,11 @@ fun HabitListScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // Daily progress indicator
+                    item {
+                        DailyProgressCard(habits = habits)
+                    }
+
                     if (!isPro && habits.size >= 3) {
                         item {
                             ProBanner(onClick = onUpgradeToPro)
@@ -343,6 +350,99 @@ fun SuggestionCardLarge(
 }
 
 @Composable
+fun DailyProgressCard(habits: List<Habit>) {
+    val completedToday = habits.count { it.isCompletedToday }
+    val totalHabits = habits.size
+    val percentage = if (totalHabits > 0) (completedToday.toFloat() / totalHabits * 100).toInt() else 0
+
+    // Animated progress
+    val animatedProgress by animateFloatAsState(
+        targetValue = if (totalHabits > 0) completedToday.toFloat() / totalHabits else 0f,
+        animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
+        label = "progress"
+    )
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (percentage == 100)
+                MaterialTheme.colorScheme.primaryContainer
+            else
+                MaterialTheme.colorScheme.surfaceVariant
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Today's Progress",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "$completedToday of $totalHabits completed",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+
+                // Large percentage display
+                Text(
+                    text = "$percentage%",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = if (percentage == 100)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Progress bar
+            LinearProgressIndicator(
+                progress = { animatedProgress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp),
+                color = if (percentage == 100)
+                    MaterialTheme.colorScheme.primary
+                else
+                    MaterialTheme.colorScheme.secondary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            )
+
+            // Motivational text
+            if (percentage == 100) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "🎉 Perfect day! All habits completed!",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else if (percentage >= 50) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "💪 Great progress! Keep going!",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun ProBanner(onClick: () -> Unit) {
     Card(
         modifier = Modifier
@@ -408,6 +508,9 @@ fun HabitCard(
     val streakEmoji = MotivationalMessages.getStreakEmoji(habit.currentStreak)
     val streakSize = MotivationalMessages.getFireSize(habit.currentStreak)
 
+    // Warning for incomplete habits with streaks
+    val showWarning = !habit.isCompletedToday && habit.currentStreak > 0
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -415,11 +518,18 @@ fun HabitCard(
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (habit.isCompletedToday)
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-            else
-                MaterialTheme.colorScheme.surface
-        )
+            containerColor = when {
+                habit.isCompletedToday -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                showWarning -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)
+                else -> MaterialTheme.colorScheme.surface
+            }
+        ),
+        border = if (showWarning) {
+            androidx.compose.foundation.BorderStroke(
+                2.dp,
+                MaterialTheme.colorScheme.error.copy(alpha = 0.3f)
+            )
+        } else null
     ) {
         Column {
             Row(
@@ -483,15 +593,21 @@ fun HabitCard(
                     modifier = Modifier
                         .size(48.dp)
                         .background(
-                            color = if (habit.isCompletedToday)
-                                MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surfaceVariant,
+                            color = when {
+                                habit.isCompletedToday -> MaterialTheme.colorScheme.primaryContainer
+                                showWarning -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                                else -> MaterialTheme.colorScheme.surfaceVariant
+                            },
                             shape = RoundedCornerShape(12.dp)
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (habit.isCompletedToday) "✓" else "🔥",
+                        text = when {
+                            habit.isCompletedToday -> "✓"
+                            showWarning -> "⚠️"
+                            else -> "🔥"
+                        },
                         fontSize = 24.sp
                     )
                 }
