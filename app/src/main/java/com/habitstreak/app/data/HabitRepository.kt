@@ -106,6 +106,43 @@ class HabitRepository(private val context: Context) {
         }
     }
 
+    /**
+     * Checks if a habit name already exists (case-insensitive).
+     * @param name The habit name to check
+     * @param excludeId Optional habit ID to exclude from the check (for editing)
+     * @return true if a duplicate exists, false otherwise
+     */
+    suspend fun isDuplicateHabitName(name: String, excludeId: String? = null): Boolean {
+        return try {
+            val habits = getHabits()
+            habits.any {
+                it.name.equals(name, ignoreCase = true) && it.id != excludeId
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Reorders habits by updating their positions.
+     * @param habits List of habits in the new order
+     */
+    suspend fun reorderHabits(habits: List<Habit>): Result<Unit> {
+        return try {
+            context.dataStore.edit { preferences ->
+                // Update positions for each habit
+                val reorderedHabits = habits.mapIndexed { index, habit ->
+                    habit.copy(position = index)
+                }
+                val habitDataList = reorderedHabits.map { HabitData.fromHabit(it) }
+                preferences[habitsKey] = gson.toJson(habitDataList)
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     // Serializable data class for Gson
     private data class HabitData(
         val id: String,

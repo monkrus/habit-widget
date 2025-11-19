@@ -13,6 +13,13 @@ data class Achievement(
 
     companion object {
         // Streak achievements
+        val FIRST_STEP = Achievement(
+            id = "first_step",
+            title = "First Step",
+            description = "Complete a habit for the first time",
+            emoji = "🎯"
+        )
+
         val WEEK_WARRIOR = Achievement(
             id = "week_warrior",
             title = "Week Warrior",
@@ -103,6 +110,7 @@ data class Achievement(
         // All achievements
         val ALL = listOf(
             GETTING_STARTED,
+            FIRST_STEP,
             WEEK_WARRIOR,
             HABIT_COLLECTOR,
             PERFECT_WEEK,
@@ -131,6 +139,7 @@ object AchievementChecker {
         val achievements = mutableListOf<Achievement>()
 
         when (streak) {
+            1 -> achievements.add(Achievement.FIRST_STEP)
             7 -> achievements.add(Achievement.WEEK_WARRIOR)
             30 -> achievements.add(Achievement.MONTH_MASTER)
             100 -> achievements.add(Achievement.CENTURY_CLUB)
@@ -172,5 +181,14 @@ object AchievementChecker {
             val date = today.minusDays(daysAgo.toLong())
             habits.all { habit -> habit.completedDates.contains(date) }
         }
+    }
+
+    /**
+     * Check if user has earned the Comeback Kid achievement
+     * This is awarded when a habit is restarted after breaking a streak
+     */
+    fun checkComebackKidAchievement(habit: Habit): Boolean {
+        // If current streak is positive and longest streak is greater, they came back
+        return habit.currentStreak > 0 && habit.longestStreak > habit.currentStreak
     }
 }
