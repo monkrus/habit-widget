@@ -329,7 +329,7 @@ fun CompletionRateCard(habit: Habit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 LinearProgressIndicator(
-                    progress = { completionRate / 100f },
+                    progress = completionRate / 100f,
                     modifier = Modifier
                         .weight(1f)
                         .height(12.dp),
@@ -439,7 +439,7 @@ fun WeeklyPatternCard(habit: Habit) {
                         fontSize = 12.sp
                     )
                     LinearProgressIndicator(
-                        progress = { percentage },
+                        progress = percentage,
                         modifier = Modifier
                             .weight(1f)
                             .height(8.dp),
