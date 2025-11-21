@@ -101,10 +101,12 @@ class HabitWidgetReceiver : AppWidgetProvider() {
             views.setTextViewText(R.id.habit_emoji, habit.emoji)
             views.setTextViewText(R.id.habit_name, habit.name)
 
-            val streakText = if (habit.isCompletedToday) {
-                "✓"
-            } else {
-                "🔥 ${habit.currentStreak}"
+            // Show different indicators: completed (✓), frozen (🛡️), or streak (🔥)
+            val streakText = when {
+                habit.isCompletedToday -> "✓"
+                habit.isFrozenToday -> "🛡️"
+                habit.currentStreak > 0 -> "🔥 ${habit.currentStreak}"
+                else -> ""
             }
             views.setTextViewText(R.id.habit_streak, streakText)
 

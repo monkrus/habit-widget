@@ -95,6 +95,9 @@ dependencies {
     // Drag and drop reorderable list
     implementation("sh.calvin.reorderable:reorderable:2.4.3")
 
+    // Confetti animations
+    implementation("nl.dionsegijn:konfetti-compose:2.0.4")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
