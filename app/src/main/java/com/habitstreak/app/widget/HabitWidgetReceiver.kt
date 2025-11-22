@@ -116,7 +116,13 @@ class HabitWidgetReceiver : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_habit_item)
 
             views.setTextViewText(R.id.habit_emoji, habit.emoji)
-            views.setTextViewText(R.id.habit_name, habit.name)
+            // Show name with identity badge if available
+            val displayName = if (habit.identity != null && habit.currentStreak >= 7) {
+                "${habit.name} (${habit.identity})"
+            } else {
+                habit.name
+            }
+            views.setTextViewText(R.id.habit_name, displayName)
 
             // Show different indicators: completed (✓), frozen (🛡️), or streak (🔥)
             val streakText = when {

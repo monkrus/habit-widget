@@ -34,8 +34,10 @@ import com.habitstreak.app.data.AchievementChecker
 import com.habitstreak.app.data.Habit
 import com.habitstreak.app.data.HabitRepository
 import com.habitstreak.app.data.HabitSuggestions
+import com.habitstreak.app.data.LevelUpEvent
 import com.habitstreak.app.data.PreferencesManager
 import com.habitstreak.app.data.TimeOfDay
+import com.habitstreak.app.data.UserProgress
 import com.habitstreak.app.ui.components.ConfettiAnimation
 import com.habitstreak.app.utils.AppConfig
 import com.habitstreak.app.utils.HapticFeedback
@@ -66,6 +68,9 @@ fun HabitListScreen(
     var confettiTrigger by remember { mutableStateOf(0) }
     var isReorderMode by remember { mutableStateOf(false) }
     var showFreezeDialog by remember { mutableStateOf<Habit?>(null) }
+    var userProgress by remember { mutableStateOf(UserProgress()) }
+    var showLevelUpDialog by remember { mutableStateOf<LevelUpEvent?>(null) }
+    var lastXpGain by remember { mutableStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -84,6 +89,59 @@ fun HabitListScreen(
         preferencesManager.freezesAvailableFlow.collect { available ->
             freezesAvailable = available
         }
+    }
+
+    LaunchedEffect(Unit) {
+        preferencesManager.userProgressFlow.collect { progress ->
+            userProgress = progress
+        }
+    }
+
+    // Level up dialog
+    showLevelUpDialog?.let { levelUp ->
+        AlertDialog(
+            onDismissRequest = { showLevelUpDialog = null },
+            icon = { Text("🎉", fontSize = 48.sp) },
+            title = {
+                Text(
+                    "Level Up!",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "Level ${levelUp.oldLevel} → Level ${levelUp.newLevel}",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = levelUp.newTitle,
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Keep building those habits!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = { showLevelUpDialog = null }) {
+                    Text("Awesome!")
+                }
+            }
+        )
     }
 
     // Freeze dialog
@@ -277,6 +335,14 @@ fun HabitListScreen(
                         DailyProgressCard(habits = habits)
                     }
 
+                    // XP and Level progress
+                    item {
+                        XpProgressCard(
+                            userProgress = userProgress,
+                            lastXpGain = lastXpGain
+                        )
+                    }
+
                     // Current time of day indicator
                     item {
                         CurrentTimeOfDayCard()
@@ -361,15 +427,24 @@ fun HabitListScreen(
                                         // Show confetti animation
                                         confettiTrigger++
 
+                                        // Award XP
+                                        val xpEarned = UserProgress.calculateCompletionXp(newStreak)
+                                        lastXpGain = xpEarned
+                                        val levelUpEvent = preferencesManager.addXp(xpEarned)
+                                        if (levelUpEvent != null) {
+                                            showLevelUpDialog = levelUpEvent
+                                        }
+
                                         // Show motivational message - prefer identity message if available
                                         val identityMessage = MotivationalMessages.getIdentityMessage(
                                             habit.identity,
                                             newStreak
                                         )
-                                        val message = identityMessage ?: MotivationalMessages.getMessage(
+                                        val baseMessage = identityMessage ?: MotivationalMessages.getMessage(
                                             currentStreak = newStreak,
                                             isFirstCompletion = habit.currentStreak == 0
                                         )
+                                        val message = "$baseMessage +${xpEarned} XP"
                                         Timber.d("Showing message: $message")
                                         snackbarHostState.showSnackbar(
                                             message = message,
@@ -979,5 +1054,102 @@ fun TimeOfDaySectionHeader(
             else
                 FontWeight.Normal
         )
+    }
+}
+
+/**
+ * XP and Level progress card
+ */
+@Composable
+fun XpProgressCard(
+    userProgress: UserProgress,
+    lastXpGain: Int
+) {
+    // Animated progress
+    val animatedProgress by animateFloatAsState(
+        targetValue = userProgress.levelProgress,
+        animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing),
+        label = "xp_progress"
+    )
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Level and title
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "Lv.${userProgress.level}",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                    Text(
+                        text = userProgress.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+
+                // XP display
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "${userProgress.totalXp} XP",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    if (lastXpGain > 0) {
+                        Text(
+                            text = "+$lastXpGain",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Progress bar
+            LinearProgressIndicator(
+                progress = animatedProgress,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // XP to next level
+            Text(
+                text = "${userProgress.xpToNextLevel} XP to Level ${userProgress.level + 1}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+            )
+        }
     }
 }
