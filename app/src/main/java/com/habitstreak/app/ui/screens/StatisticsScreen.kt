@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.habitstreak.app.data.Habit
 import com.habitstreak.app.data.HabitRepository
+import com.habitstreak.app.data.TimeOfDay
+import com.habitstreak.app.utils.MotivationalMessages
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.*
@@ -85,6 +87,14 @@ fun StatisticsContent(
         // Habit Header
         HabitHeader(habit)
 
+        // Identity Progress (if has identity)
+        habit.identity?.let { identity ->
+            IdentityProgressCard(habit, identity)
+        }
+
+        // Time of Day Info
+        TimeOfDayCard(habit)
+
         // Key Statistics
         KeyStatisticsCard(habit)
 
@@ -96,6 +106,11 @@ fun StatisticsContent(
 
         // Streaks Overview
         StreaksCard(habit)
+
+        // Freeze Usage (if any)
+        if (habit.freezeUsedDates.isNotEmpty()) {
+            FreezeUsageCard(habit)
+        }
 
         // Weekly Pattern
         WeeklyPatternCard(habit)
@@ -452,6 +467,173 @@ fun WeeklyPatternCard(habit: Habit) {
                         modifier = Modifier.width(30.dp),
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun IdentityProgressCard(habit: Habit, identity: String) {
+    val currentBadge = MotivationalMessages.getIdentityBadge(identity, habit.currentStreak)
+    val nextMilestone = when {
+        habit.currentStreak < 7 -> 7
+        habit.currentStreak < 30 -> 30
+        habit.currentStreak < 100 -> 100
+        else -> null
+    }
+    val nextBadge = nextMilestone?.let { MotivationalMessages.getIdentityBadge(identity, it) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "Identity Journey",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        "Current Status",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        currentBadge,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                if (nextMilestone != null && nextBadge != null) {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            "Next at $nextMilestone days",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
+                        )
+                        Text(
+                            nextBadge,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+                }
+            }
+
+            if (nextMilestone != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                val progress = habit.currentStreak.toFloat() / nextMilestone
+                LinearProgressIndicator(
+                    progress = progress.coerceIn(0f, 1f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp),
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "${nextMilestone - habit.currentStreak} days to next rank",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.6f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun TimeOfDayCard(habit: Habit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    "Scheduled Time",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+                Text(
+                    habit.timeOfDay.displayName,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Text(
+                habit.timeOfDay.emoji,
+                fontSize = 32.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun FreezeUsageCard(habit: Habit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "Streak Freezes Used",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("🛡️", fontSize = 32.sp)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            "${habit.freezeUsedDates.size}",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                        Text(
+                            "freezes used",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+
+                if (habit.freezeUsedDates.isNotEmpty()) {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            "Last used",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                        Text(
+                            habit.freezeUsedDates.maxOrNull()?.format(
+                                java.time.format.DateTimeFormatter.ofPattern("MMM dd")
+                            ) ?: "",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
         }
