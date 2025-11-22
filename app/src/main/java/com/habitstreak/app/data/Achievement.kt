@@ -107,6 +107,21 @@ data class Achievement(
             emoji = "🦉"
         )
 
+        // Freeze achievements
+        val SAFETY_FIRST = Achievement(
+            id = "safety_first",
+            title = "Safety First",
+            description = "Use your first streak freeze",
+            emoji = "🛡️"
+        )
+
+        val FREEZE_MASTER = Achievement(
+            id = "freeze_master",
+            title = "Freeze Master",
+            description = "Use 10 streak freezes",
+            emoji = "🧊"
+        )
+
         // All achievements
         val ALL = listOf(
             GETTING_STARTED,
@@ -121,7 +136,9 @@ data class Achievement(
             YEAR_LEGEND,
             COMEBACK_KID,
             EARLY_BIRD,
-            NIGHT_OWL
+            NIGHT_OWL,
+            SAFETY_FIRST,
+            FREEZE_MASTER
         )
 
         fun getById(id: String): Achievement? {
@@ -190,5 +207,19 @@ object AchievementChecker {
     fun checkComebackKidAchievement(habit: Habit): Boolean {
         // If current streak is positive and longest streak is greater, they came back
         return habit.currentStreak > 0 && habit.longestStreak > habit.currentStreak
+    }
+
+    /**
+     * Check freeze-related achievements based on total freezes used
+     */
+    fun checkFreezeAchievements(totalFreezesUsed: Int): List<Achievement> {
+        val achievements = mutableListOf<Achievement>()
+
+        when (totalFreezesUsed) {
+            1 -> achievements.add(Achievement.SAFETY_FIRST)
+            10 -> achievements.add(Achievement.FREEZE_MASTER)
+        }
+
+        return achievements
     }
 }

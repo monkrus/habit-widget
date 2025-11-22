@@ -24,6 +24,13 @@ class PreferencesManager(private val context: Context) {
     private val reminderHourKey = intPreferencesKey("reminder_hour")
     private val reminderMinuteKey = intPreferencesKey("reminder_minute")
     private val achievementsKey = stringPreferencesKey("achievements")
+    private val freezesUsedThisMonthKey = intPreferencesKey("freezes_used_this_month")
+    private val freezeMonthKey = intPreferencesKey("freeze_month") // Track which month the count is for
+    private val totalFreezesUsedKey = intPreferencesKey("total_freezes_used")
+
+    companion object {
+        const val FREE_MONTHLY_FREEZE_LIMIT = 3
+    }
 
     val isProFlow: Flow<Boolean> = context.prefsDataStore.data.map { preferences ->
         preferences[isProKey] ?: false
@@ -143,6 +150,113 @@ class PreferencesManager(private val context: Context) {
             }
         } catch (e: Exception) {
             emptyList()
+        }
+    }
+
+    // ===== Freeze Tracking =====
+
+    /**
+     * Flow of available freezes remaining this month
+     */
+    val freezesAvailableFlow: Flow<Int> = context.prefsDataStore.data.map { preferences ->
+        val isPro = preferences[isProKey] ?: false
+        if (isPro) {
+            Int.MAX_VALUE // Unlimited for Pro users
+        } else {
+            val currentMonth = LocalDate.now().monthValue
+            val savedMonth = preferences[freezeMonthKey] ?: currentMonth
+            val usedThisMonth = if (savedMonth == currentMonth) {
+                preferences[freezesUsedThisMonthKey] ?: 0
+            } else {
+                0 // New month, reset count
+            }
+            maxOf(0, FREE_MONTHLY_FREEZE_LIMIT - usedThisMonth)
+        }
+    }
+
+    /**
+     * Get remaining freezes for this month
+     */
+    suspend fun getFreezesAvailable(): Int {
+        return try {
+            val preferences = context.prefsDataStore.data.first()
+            val isPro = preferences[isProKey] ?: false
+            if (isPro) {
+                Int.MAX_VALUE
+            } else {
+                val currentMonth = LocalDate.now().monthValue
+                val savedMonth = preferences[freezeMonthKey] ?: currentMonth
+                val usedThisMonth = if (savedMonth == currentMonth) {
+                    preferences[freezesUsedThisMonthKey] ?: 0
+                } else {
+                    0
+                }
+                maxOf(0, FREE_MONTHLY_FREEZE_LIMIT - usedThisMonth)
+            }
+        } catch (e: Exception) {
+            FREE_MONTHLY_FREEZE_LIMIT
+        }
+    }
+
+    /**
+     * Use a freeze. Returns true if freeze was available and used, false otherwise.
+     */
+    suspend fun useFreeze(): Boolean {
+        val preferences = context.prefsDataStore.data.first()
+        val isPro = preferences[isProKey] ?: false
+        val currentMonth = LocalDate.now().monthValue
+        val savedMonth = preferences[freezeMonthKey] ?: currentMonth
+
+        // Reset count if new month
+        val usedThisMonth = if (savedMonth == currentMonth) {
+            preferences[freezesUsedThisMonthKey] ?: 0
+        } else {
+            0
+        }
+
+        // Check if freeze is available (Pro users always have freezes)
+        if (!isPro && usedThisMonth >= FREE_MONTHLY_FREEZE_LIMIT) {
+            return false // No freezes available
+        }
+
+        // Use the freeze
+        context.prefsDataStore.edit { prefs ->
+            prefs[freezeMonthKey] = currentMonth
+            prefs[freezesUsedThisMonthKey] = usedThisMonth + 1
+            val totalUsed = (prefs[totalFreezesUsedKey] ?: 0) + 1
+            prefs[totalFreezesUsedKey] = totalUsed
+        }
+
+        return true
+    }
+
+    /**
+     * Get total freezes used (for achievements)
+     */
+    suspend fun getTotalFreezesUsed(): Int {
+        return try {
+            val preferences = context.prefsDataStore.data.first()
+            preferences[totalFreezesUsedKey] ?: 0
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    /**
+     * Get freezes used this month (for UI display)
+     */
+    suspend fun getFreezesUsedThisMonth(): Int {
+        return try {
+            val preferences = context.prefsDataStore.data.first()
+            val currentMonth = LocalDate.now().monthValue
+            val savedMonth = preferences[freezeMonthKey] ?: currentMonth
+            if (savedMonth == currentMonth) {
+                preferences[freezesUsedThisMonthKey] ?: 0
+            } else {
+                0
+            }
+        } catch (e: Exception) {
+            0
         }
     }
 }

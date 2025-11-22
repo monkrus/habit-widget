@@ -60,8 +60,10 @@ fun HabitListScreen(
 
     var habits by remember { mutableStateOf<List<Habit>>(emptyList()) }
     var isPro by remember { mutableStateOf(false) }
+    var freezesAvailable by remember { mutableStateOf(PreferencesManager.FREE_MONTHLY_FREEZE_LIMIT) }
     var confettiTrigger by remember { mutableStateOf(0) }
     var isReorderMode by remember { mutableStateOf(false) }
+    var showFreezeDialog by remember { mutableStateOf<Habit?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -74,6 +76,75 @@ fun HabitListScreen(
         preferencesManager.isProFlow.collect { pro ->
             isPro = pro
         }
+    }
+
+    LaunchedEffect(Unit) {
+        preferencesManager.freezesAvailableFlow.collect { available ->
+            freezesAvailable = available
+        }
+    }
+
+    // Freeze dialog
+    showFreezeDialog?.let { habit ->
+        AlertDialog(
+            onDismissRequest = { showFreezeDialog = null },
+            icon = { Text("🛡️", fontSize = 32.sp) },
+            title = { Text("Use Streak Freeze?") },
+            text = {
+                Column {
+                    Text(
+                        "Protect your ${habit.currentStreak}-day streak for \"${habit.name}\" today.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        if (isPro) "Unlimited freezes available"
+                        else "Freezes remaining: $freezesAvailable/3 this month",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            val freezeUsed = preferencesManager.useFreeze()
+                            if (freezeUsed) {
+                                repository.freezeHabitToday(habit.id)
+                                HabitWidgetReceiver.updateAllWidgets(context)
+
+                                // Check freeze achievements
+                                val totalFreezes = preferencesManager.getTotalFreezesUsed()
+                                val freezeAchievements = AchievementChecker.checkFreezeAchievements(totalFreezes)
+                                freezeAchievements.forEach { achievement ->
+                                    preferencesManager.unlockAchievement(achievement.id)
+                                }
+
+                                snackbarHostState.showSnackbar(
+                                    message = "🛡️ Streak protected! Your ${habit.currentStreak}-day streak is safe.",
+                                    duration = SnackbarDuration.Short
+                                )
+                            } else {
+                                snackbarHostState.showSnackbar(
+                                    message = "No freezes available. Upgrade to Pro for unlimited freezes!",
+                                    duration = SnackbarDuration.Long
+                                )
+                            }
+                        }
+                        showFreezeDialog = null
+                    },
+                    enabled = freezesAvailable > 0 || isPro
+                ) {
+                    Text("Use Freeze")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFreezeDialog = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -215,6 +286,8 @@ fun HabitListScreen(
                         HabitCard(
                             habit = habit,
                             onToggle = {
+                                // Don't toggle if frozen today
+                                if (habit.isFrozenToday) return@HabitCard
                                 scope.launch {
                                     val wasCompleted = habit.isCompletedToday
                                     repository.toggleHabitToday(habit.id)
@@ -271,6 +344,9 @@ fun HabitListScreen(
                             },
                             onEdit = { onEditHabit(habit.id) },
                             onViewStats = { onViewStatistics(habit.id) },
+                            onFreeze = { showFreezeDialog = habit },
+                            freezesAvailable = freezesAvailable,
+                            isPro = isPro,
                             isReorderMode = isReorderMode,
                             reorderableState = reorderableLazyListState
                         )
@@ -532,6 +608,9 @@ fun HabitCard(
     onToggle: () -> Unit,
     onEdit: () -> Unit,
     onViewStats: () -> Unit,
+    onFreeze: () -> Unit = {},
+    freezesAvailable: Int = 0,
+    isPro: Boolean = false,
     isReorderMode: Boolean = false,
     reorderableState: sh.calvin.reorderable.ReorderableLazyListState? = null
 ) {
@@ -556,8 +635,9 @@ fun HabitCard(
     val streakEmoji = MotivationalMessages.getStreakEmoji(habit.currentStreak)
     val streakSize = MotivationalMessages.getFireSize(habit.currentStreak)
 
-    // Warning for incomplete habits with streaks
-    val showWarning = !habit.isCompletedToday && habit.currentStreak > 0
+    // Warning for incomplete habits with streaks (but not if frozen)
+    val showWarning = habit.isStreakAtRisk && !habit.isFrozenToday
+    val canFreeze = habit.isStreakAtRisk && (freezesAvailable > 0 || isPro)
 
     Card(
         modifier = Modifier
@@ -568,16 +648,16 @@ fun HabitCard(
         colors = CardDefaults.cardColors(
             containerColor = when {
                 habit.isCompletedToday -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                habit.isFrozenToday -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
                 showWarning -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)
                 else -> MaterialTheme.colorScheme.surface
             }
         ),
-        border = if (showWarning) {
-            androidx.compose.foundation.BorderStroke(
-                2.dp,
-                MaterialTheme.colorScheme.error.copy(alpha = 0.3f)
-            )
-        } else null
+        border = when {
+            habit.isFrozenToday -> BorderStroke(2.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f))
+            showWarning -> BorderStroke(2.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f))
+            else -> null
+        }
     ) {
         Column {
             Row(
@@ -656,6 +736,7 @@ fun HabitCard(
                         .background(
                             color = when {
                                 habit.isCompletedToday -> MaterialTheme.colorScheme.primaryContainer
+                                habit.isFrozenToday -> MaterialTheme.colorScheme.tertiaryContainer
                                 showWarning -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
                                 else -> MaterialTheme.colorScheme.surfaceVariant
                             },
@@ -666,6 +747,7 @@ fun HabitCard(
                     Text(
                         text = when {
                             habit.isCompletedToday -> "✓"
+                            habit.isFrozenToday -> "🛡️"
                             showWarning -> "⚠️"
                             else -> "🔥"
                         },
@@ -683,25 +765,58 @@ fun HabitCard(
                         .padding(bottom = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // Freeze button - show when streak is at risk and not already frozen
+                    if (canFreeze && !habit.isFrozenToday) {
+                        Button(
+                            onClick = onFreeze,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.tertiary
+                            )
+                        ) {
+                            Text("🛡️", fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Freeze", fontSize = 14.sp)
+                        }
+                    }
                     OutlinedButton(
                         onClick = onViewStats,
                         modifier = Modifier.weight(1f)
                     ) {
-                    Icon(
-                        Icons.Default.BarChart,
-                        contentDescription = "Statistics",
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Stats", fontSize = 14.sp)
+                        Icon(
+                            Icons.Default.BarChart,
+                            contentDescription = "Statistics",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Stats", fontSize = 14.sp)
+                    }
+                    OutlinedButton(
+                        onClick = onEdit,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Edit", fontSize = 14.sp)
+                    }
                 }
-                OutlinedButton(
-                    onClick = onEdit,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Edit", fontSize = 14.sp)
+
+                // Frozen status message
+                if (habit.isFrozenToday) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "🛡️ Streak protected today",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
-            }
             }
         }
     }

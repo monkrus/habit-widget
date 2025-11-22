@@ -107,6 +107,33 @@ class HabitRepository(private val context: Context) {
     }
 
     /**
+     * Use a freeze for a specific habit today.
+     * @param habitId The ID of the habit to freeze
+     * @return Result indicating success or failure
+     */
+    suspend fun freezeHabitToday(habitId: String): Result<Unit> {
+        return try {
+            context.dataStore.edit { preferences ->
+                val currentJson = preferences[habitsKey] ?: "[]"
+                val type = object : TypeToken<List<HabitData>>() {}.type
+                val currentList: MutableList<HabitData> = gson.fromJson(currentJson, type)
+                val index = currentList.indexOfFirst { it.id == habitId }
+                if (index != -1) {
+                    val habit = currentList[index].toHabit()
+                    val updated = habit.useFreezeToday()
+                    if (updated != null) {
+                        currentList[index] = HabitData.fromHabit(updated)
+                        preferences[habitsKey] = gson.toJson(currentList)
+                    }
+                }
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Checks if a habit name already exists (case-insensitive).
      * @param name The habit name to check
      * @param excludeId Optional habit ID to exclude from the check (for editing)
@@ -144,13 +171,16 @@ class HabitRepository(private val context: Context) {
     }
 
     // Serializable data class for Gson
+    // Note: New fields have default values for backward compatibility with existing data
     private data class HabitData(
         val id: String,
         val name: String,
         val emoji: String,
         val createdAt: String,
         val completedDates: List<String>,
-        val position: Int
+        val freezeUsedDates: List<String> = emptyList(),
+        val position: Int,
+        val identity: String? = null
     ) {
         fun toHabit(): Habit = Habit(
             id = id,
@@ -158,7 +188,9 @@ class HabitRepository(private val context: Context) {
             emoji = emoji,
             createdAt = LocalDate.parse(createdAt),
             completedDates = completedDates.map { LocalDate.parse(it) },
-            position = position
+            freezeUsedDates = freezeUsedDates.map { LocalDate.parse(it) },
+            position = position,
+            identity = identity
         )
 
         companion object {
@@ -168,7 +200,9 @@ class HabitRepository(private val context: Context) {
                 emoji = habit.emoji,
                 createdAt = habit.createdAt.toString(),
                 completedDates = habit.completedDates.map { it.toString() },
-                position = habit.position
+                freezeUsedDates = habit.freezeUsedDates.map { it.toString() },
+                position = habit.position,
+                identity = habit.identity
             )
         }
     }
