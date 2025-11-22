@@ -433,6 +433,18 @@ fun HabitListScreen(
                                         val levelUpEvent = preferencesManager.addXp(xpEarned)
                                         if (levelUpEvent != null) {
                                             showLevelUpDialog = levelUpEvent
+                                            // Check level achievements
+                                            val levelAchievements = AchievementChecker.checkLevelAchievements(levelUpEvent.newLevel)
+                                            levelAchievements.forEach { achievement ->
+                                                preferencesManager.unlockAchievement(achievement.id)
+                                            }
+                                        }
+
+                                        // Check XP achievements
+                                        val newTotalXp = preferencesManager.getTotalXp()
+                                        val xpAchievements = AchievementChecker.checkXpAchievements(newTotalXp)
+                                        xpAchievements.forEach { achievement ->
+                                            preferencesManager.unlockAchievement(achievement.id)
                                         }
 
                                         // Show motivational message - prefer identity message if available

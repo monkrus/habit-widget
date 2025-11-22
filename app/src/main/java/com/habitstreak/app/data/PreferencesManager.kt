@@ -28,6 +28,7 @@ class PreferencesManager(private val context: Context) {
     private val freezeMonthKey = intPreferencesKey("freeze_month") // Track which month the count is for
     private val totalFreezesUsedKey = intPreferencesKey("total_freezes_used")
     private val totalXpKey = intPreferencesKey("total_xp")
+    private val routineRemindersEnabledKey = booleanPreferencesKey("routine_reminders_enabled")
 
     companion object {
         const val FREE_MONTHLY_FREEZE_LIMIT = 3
@@ -45,6 +46,25 @@ class PreferencesManager(private val context: Context) {
         val hour = preferences[reminderHourKey] ?: 20 // Default: 8 PM
         val minute = preferences[reminderMinuteKey] ?: 0
         Pair(hour, minute)
+    }
+
+    val routineRemindersEnabledFlow: Flow<Boolean> = context.prefsDataStore.data.map { preferences ->
+        preferences[routineRemindersEnabledKey] ?: false // Default: disabled
+    }
+
+    suspend fun setRoutineRemindersEnabled(enabled: Boolean) {
+        context.prefsDataStore.edit { preferences ->
+            preferences[routineRemindersEnabledKey] = enabled
+        }
+    }
+
+    suspend fun getRoutineRemindersEnabled(): Boolean {
+        return try {
+            val preferences = context.prefsDataStore.data.first()
+            preferences[routineRemindersEnabledKey] ?: false
+        } catch (e: Exception) {
+            false
+        }
     }
 
     suspend fun setProVersion(isPro: Boolean) {

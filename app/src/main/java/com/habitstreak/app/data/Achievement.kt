@@ -122,6 +122,49 @@ data class Achievement(
             emoji = "🧊"
         )
 
+        // XP & Level achievements
+        val XP_STARTER = Achievement(
+            id = "xp_starter",
+            title = "XP Starter",
+            description = "Earn your first 100 XP",
+            emoji = "✨"
+        )
+
+        val XP_HUNTER = Achievement(
+            id = "xp_hunter",
+            title = "XP Hunter",
+            description = "Earn 1,000 XP total",
+            emoji = "💫"
+        )
+
+        val XP_MASTER = Achievement(
+            id = "xp_master",
+            title = "XP Master",
+            description = "Earn 10,000 XP total",
+            emoji = "🌟"
+        )
+
+        val LEVEL_5 = Achievement(
+            id = "level_5",
+            title = "Practitioner",
+            description = "Reach Level 5",
+            emoji = "🎖️"
+        )
+
+        val LEVEL_10 = Achievement(
+            id = "level_10",
+            title = "Veteran",
+            description = "Reach Level 10",
+            emoji = "🏅"
+        )
+
+        val LEVEL_20 = Achievement(
+            id = "level_20",
+            title = "Transcendent",
+            description = "Reach Level 20",
+            emoji = "👑"
+        )
+
         // All achievements
         val ALL = listOf(
             GETTING_STARTED,
@@ -138,7 +181,13 @@ data class Achievement(
             EARLY_BIRD,
             NIGHT_OWL,
             SAFETY_FIRST,
-            FREEZE_MASTER
+            FREEZE_MASTER,
+            XP_STARTER,
+            XP_HUNTER,
+            XP_MASTER,
+            LEVEL_5,
+            LEVEL_10,
+            LEVEL_20
         )
 
         fun getById(id: String): Achievement? {
@@ -219,6 +268,32 @@ object AchievementChecker {
             1 -> achievements.add(Achievement.SAFETY_FIRST)
             10 -> achievements.add(Achievement.FREEZE_MASTER)
         }
+
+        return achievements
+    }
+
+    /**
+     * Check XP milestone achievements
+     */
+    fun checkXpAchievements(totalXp: Int): List<Achievement> {
+        val achievements = mutableListOf<Achievement>()
+
+        if (totalXp >= 100) achievements.add(Achievement.XP_STARTER)
+        if (totalXp >= 1000) achievements.add(Achievement.XP_HUNTER)
+        if (totalXp >= 10000) achievements.add(Achievement.XP_MASTER)
+
+        return achievements
+    }
+
+    /**
+     * Check level milestone achievements
+     */
+    fun checkLevelAchievements(level: Int): List<Achievement> {
+        val achievements = mutableListOf<Achievement>()
+
+        if (level >= 5) achievements.add(Achievement.LEVEL_5)
+        if (level >= 10) achievements.add(Achievement.LEVEL_10)
+        if (level >= 20) achievements.add(Achievement.LEVEL_20)
 
         return achievements
     }

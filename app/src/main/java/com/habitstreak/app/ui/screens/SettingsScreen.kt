@@ -57,6 +57,12 @@ fun SettingsScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        preferencesManager.routineRemindersEnabledFlow.collect { enabled ->
+            routineRemindersEnabled = enabled
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -248,6 +254,9 @@ fun SettingsScreen(
                         checked = routineRemindersEnabled,
                         onCheckedChange = { enabled ->
                             routineRemindersEnabled = enabled
+                            scope.launch {
+                                preferencesManager.setRoutineRemindersEnabled(enabled)
+                            }
                             if (enabled) {
                                 notificationManager.scheduleTimeBasedReminders()
                             } else {
