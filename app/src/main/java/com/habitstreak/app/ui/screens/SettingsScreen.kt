@@ -22,8 +22,13 @@ import com.habitstreak.app.data.HabitRepository
 import com.habitstreak.app.data.PreferencesManager
 import com.habitstreak.app.notifications.HabitNotificationManager
 import com.habitstreak.app.notifications.NotificationScheduler
+import com.habitstreak.app.utils.BackupManager
 import com.habitstreak.app.utils.CsvExporter
 import kotlinx.coroutines.launch
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Restore
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,7 +46,28 @@ fun SettingsScreen(
     var reminderMinute by remember { mutableStateOf(0) }
     var routineRemindersEnabled by remember { mutableStateOf(false) }
     var showExportSuccess by remember { mutableStateOf(false) }
+    var showBackupSuccess by remember { mutableStateOf(false) }
+    var showRestoreResult by remember { mutableStateOf<String?>(null) }
     val notificationManager = remember { HabitNotificationManager(context) }
+    val backupManager = remember { BackupManager(context) }
+
+    // File picker for restore
+    val restoreLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            scope.launch {
+                backupManager.restoreBackup(it).fold(
+                    onSuccess = { result ->
+                        showRestoreResult = "Restored ${result.habitsRestored} habits, ${result.achievementsRestored} achievements"
+                    },
+                    onFailure = { error ->
+                        showRestoreResult = "Restore failed: ${error.message}"
+                    }
+                )
+            }
+        }
+    }
 
     // Load preferences
     LaunchedEffect(Unit) {
@@ -321,6 +347,105 @@ fun SettingsScreen(
                         )
                     }
                 }
+            }
+
+            // Backup Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            scope.launch {
+                                backupManager.createBackup().fold(
+                                    onSuccess = { uri ->
+                                        val shareIntent = backupManager.createShareIntent(uri)
+                                        context.startActivity(Intent.createChooser(shareIntent, "Save Backup"))
+                                        showBackupSuccess = true
+                                    },
+                                    onFailure = { /* Handle error */ }
+                                )
+                            }
+                        }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.CloudUpload,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Backup Data",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Save habits, XP, and achievements",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+            }
+
+            // Restore Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            restoreLauncher.launch("application/json")
+                        }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Restore,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.tertiary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Restore Backup",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "Restore from a backup file",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+            }
+
+            // Show restore result
+            showRestoreResult?.let { message ->
+                LaunchedEffect(message) {
+                    kotlinx.coroutines.delay(3000)
+                    showRestoreResult = null
+                }
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (message.startsWith("Restored"))
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.error
+                )
             }
 
             if (showExportSuccess) {

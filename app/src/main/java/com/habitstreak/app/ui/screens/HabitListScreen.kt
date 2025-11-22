@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -341,6 +342,11 @@ fun HabitListScreen(
                             userProgress = userProgress,
                             lastXpGain = lastXpGain
                         )
+                    }
+
+                    // Weekly progress summary
+                    item {
+                        WeeklyProgressCard(habits = habits)
                     }
 
                     // Current time of day indicator
@@ -1163,5 +1169,138 @@ fun XpProgressCard(
                 color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
             )
         }
+    }
+}
+
+/**
+ * Weekly progress summary card
+ */
+@Composable
+fun WeeklyProgressCard(habits: List<Habit>) {
+    val today = java.time.LocalDate.now()
+    val weekStart = today.minusDays(today.dayOfWeek.value.toLong() - 1)
+
+    // Calculate weekly stats
+    var totalCompletions = 0
+    var perfectDays = 0
+
+    for (i in 0 until 7) {
+        val date = weekStart.plusDays(i.toLong())
+        if (date.isAfter(today)) break
+
+        val completedOnDay = habits.count { habit ->
+            habit.completedDates.contains(date) || habit.freezeUsedDates.contains(date)
+        }
+        totalCompletions += completedOnDay
+
+        if (habits.isNotEmpty() && completedOnDay == habits.size) {
+            perfectDays++
+        }
+    }
+
+    val daysPassed = minOf(7, today.dayOfWeek.value)
+    val maxPossible = habits.size * daysPassed
+    val completionRate = if (maxPossible > 0) (totalCompletions * 100) / maxPossible else 0
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = "This Week",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                WeeklyStatItem(
+                    value = "$totalCompletions",
+                    label = "Completions",
+                    emoji = "✅"
+                )
+                WeeklyStatItem(
+                    value = "$perfectDays",
+                    label = "Perfect Days",
+                    emoji = "⭐"
+                )
+                WeeklyStatItem(
+                    value = "$completionRate%",
+                    label = "Rate",
+                    emoji = "📊"
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Week day indicators
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                val dayNames = listOf("M", "T", "W", "T", "F", "S", "S")
+                dayNames.forEachIndexed { index, dayName ->
+                    val date = weekStart.plusDays(index.toLong())
+                    val isToday = date == today
+                    val isPast = date.isBefore(today) || date == today
+                    val allCompleted = habits.isNotEmpty() && habits.all { habit ->
+                        habit.completedDates.contains(date) || habit.freezeUsedDates.contains(date)
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = dayName,
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .background(
+                                    when {
+                                        allCompleted && isPast -> MaterialTheme.colorScheme.primary
+                                        isToday -> MaterialTheme.colorScheme.primaryContainer
+                                        isPast -> MaterialTheme.colorScheme.surfaceVariant
+                                        else -> MaterialTheme.colorScheme.surface
+                                    },
+                                    CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (allCompleted && isPast) {
+                                Text("✓", fontSize = 12.sp, color = MaterialTheme.colorScheme.onPrimary)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WeeklyStatItem(value: String, label: String, emoji: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(emoji, fontSize = 16.sp)
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onPrimaryContainer
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+        )
     }
 }

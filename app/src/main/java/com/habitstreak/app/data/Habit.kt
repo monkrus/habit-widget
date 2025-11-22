@@ -47,6 +47,43 @@ enum class TimeOfDay(val displayName: String, val emoji: String) {
     }
 }
 
+/**
+ * Habit categories for organization
+ */
+enum class HabitCategory(val displayName: String, val emoji: String, val color: Long) {
+    HEALTH("Health", "💪", 0xFF4CAF50),
+    PRODUCTIVITY("Productivity", "📈", 0xFF2196F3),
+    MINDFULNESS("Mindfulness", "🧘", 0xFF9C27B0),
+    LEARNING("Learning", "📚", 0xFFFF9800),
+    SOCIAL("Social", "👥", 0xFFE91E63),
+    CREATIVITY("Creativity", "🎨", 0xFF00BCD4),
+    FINANCE("Finance", "💰", 0xFF4CAF50),
+    OTHER("Other", "📌", 0xFF607D8B);
+
+    companion object {
+        /**
+         * Suggest a category based on habit name
+         */
+        fun suggestFromHabitName(name: String): HabitCategory {
+            val lowerName = name.lowercase()
+            return when {
+                lowerName.containsAny("exercise", "workout", "run", "gym", "walk", "water", "sleep", "health", "yoga", "stretch") -> HEALTH
+                lowerName.containsAny("work", "task", "project", "email", "meeting", "plan", "organize") -> PRODUCTIVITY
+                lowerName.containsAny("meditat", "mindful", "breath", "journal", "gratitude", "reflect") -> MINDFULNESS
+                lowerName.containsAny("read", "learn", "study", "course", "language", "practice", "skill") -> LEARNING
+                lowerName.containsAny("call", "friend", "family", "social", "connect", "network") -> SOCIAL
+                lowerName.containsAny("art", "draw", "paint", "music", "write", "create", "design", "photo") -> CREATIVITY
+                lowerName.containsAny("save", "budget", "invest", "money", "finance", "expense") -> FINANCE
+                else -> OTHER
+            }
+        }
+
+        private fun String.containsAny(vararg keywords: String): Boolean {
+            return keywords.any { this.contains(it) }
+        }
+    }
+}
+
 data class Habit(
     val id: String = java.util.UUID.randomUUID().toString(),
     val name: String,
@@ -56,7 +93,8 @@ data class Habit(
     val freezeUsedDates: List<LocalDate> = emptyList(),
     val position: Int = 0,
     val identity: String? = null, // e.g., "Runner", "Reader", "Meditator"
-    val timeOfDay: TimeOfDay = TimeOfDay.ANYTIME // When this habit should be done
+    val timeOfDay: TimeOfDay = TimeOfDay.ANYTIME, // When this habit should be done
+    val category: HabitCategory = HabitCategory.OTHER // Habit category for organization
 ) {
     val currentStreak: Int
         get() = calculateCurrentStreak()

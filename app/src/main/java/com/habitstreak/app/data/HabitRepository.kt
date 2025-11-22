@@ -181,7 +181,8 @@ class HabitRepository(private val context: Context) {
         val freezeUsedDates: List<String> = emptyList(),
         val position: Int,
         val identity: String? = null,
-        val timeOfDay: String = TimeOfDay.ANYTIME.name
+        val timeOfDay: String = TimeOfDay.ANYTIME.name,
+        val category: String = HabitCategory.OTHER.name
     ) {
         fun toHabit(): Habit = Habit(
             id = id,
@@ -192,7 +193,8 @@ class HabitRepository(private val context: Context) {
             freezeUsedDates = freezeUsedDates.map { LocalDate.parse(it) },
             position = position,
             identity = identity,
-            timeOfDay = try { TimeOfDay.valueOf(timeOfDay) } catch (e: Exception) { TimeOfDay.ANYTIME }
+            timeOfDay = try { TimeOfDay.valueOf(timeOfDay) } catch (e: Exception) { TimeOfDay.ANYTIME },
+            category = try { HabitCategory.valueOf(category) } catch (e: Exception) { HabitCategory.OTHER }
         )
 
         companion object {
@@ -205,7 +207,8 @@ class HabitRepository(private val context: Context) {
                 freezeUsedDates = habit.freezeUsedDates.map { it.toString() },
                 position = habit.position,
                 identity = habit.identity,
-                timeOfDay = habit.timeOfDay.name
+                timeOfDay = habit.timeOfDay.name,
+                category = habit.category.name
             )
         }
     }

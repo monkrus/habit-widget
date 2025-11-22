@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.habitstreak.app.data.Habit
+import com.habitstreak.app.data.HabitCategory
 import com.habitstreak.app.data.HabitRepository
 import com.habitstreak.app.data.TimeOfDay
 import com.habitstreak.app.utils.AppConfig
@@ -43,6 +44,7 @@ fun AddEditHabitScreen(
     var selectedEmoji by remember { mutableStateOf("🎯") }
     var identity by remember { mutableStateOf("") }
     var selectedTimeOfDay by remember { mutableStateOf(TimeOfDay.ANYTIME) }
+    var selectedCategory by remember { mutableStateOf(HabitCategory.OTHER) }
     var existingHabit by remember { mutableStateOf<Habit?>(null) }
     var showEmojiPicker by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -61,6 +63,13 @@ fun AddEditHabitScreen(
                 selectedTimeOfDay = suggestedTime
             }
         }
+        // Auto-suggest category based on habit name (only if not editing and still OTHER)
+        if (!isEditing && selectedCategory == HabitCategory.OTHER) {
+            val suggestedCategory = HabitCategory.suggestFromHabitName(habitName)
+            if (suggestedCategory != HabitCategory.OTHER) {
+                selectedCategory = suggestedCategory
+            }
+        }
     }
 
     LaunchedEffect(habitId) {
@@ -72,6 +81,7 @@ fun AddEditHabitScreen(
                 selectedEmoji = it.emoji
                 identity = it.identity ?: ""
                 selectedTimeOfDay = it.timeOfDay
+                selectedCategory = it.category
             }
         }
     }
@@ -177,6 +187,63 @@ fun AddEditHabitScreen(
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Category selector
+            Text(
+                text = "Category",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // First row of categories (4 items)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                HabitCategory.entries.take(4).forEach { category ->
+                    FilterChip(
+                        selected = selectedCategory == category,
+                        onClick = { selectedCategory = category },
+                        label = {
+                            Text(
+                                text = "${category.emoji}",
+                                fontSize = 14.sp
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            // Second row of categories (4 items)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                HabitCategory.entries.drop(4).forEach { category ->
+                    FilterChip(
+                        selected = selectedCategory == category,
+                        onClick = { selectedCategory = category },
+                        label = {
+                            Text(
+                                text = "${category.emoji}",
+                                fontSize = 14.sp
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            // Show selected category name
+            Text(
+                text = "Selected: ${selectedCategory.emoji} ${selectedCategory.displayName}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 4.dp)
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -320,7 +387,8 @@ fun AddEditHabitScreen(
                                         name = habitName.trim(),
                                         emoji = selectedEmoji,
                                         identity = identity.trim().ifBlank { null },
-                                        timeOfDay = selectedTimeOfDay
+                                        timeOfDay = selectedTimeOfDay,
+                                        category = selectedCategory
                                     )
                                 )
                             } else {
@@ -331,6 +399,7 @@ fun AddEditHabitScreen(
                                         emoji = selectedEmoji,
                                         identity = identity.trim().ifBlank { null },
                                         timeOfDay = selectedTimeOfDay,
+                                        category = selectedCategory,
                                         position = habits.size
                                     )
                                 )
