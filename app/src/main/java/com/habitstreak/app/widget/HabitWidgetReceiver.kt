@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.view.View
 import android.widget.RemoteViews
 import com.habitstreak.app.MainActivity
@@ -95,6 +96,22 @@ class HabitWidgetReceiver : AppWidgetProvider() {
             }
         }
 
+        /**
+         * Get dynamic color based on streak length
+         * - Gray: No streak (0 days)
+         * - Blue: Starting out (1-6 days)
+         * - Orange: Building momentum (7-29 days)
+         * - Gold: Habit master (30+ days)
+         */
+        private fun getStreakColor(streak: Int): Int {
+            return when {
+                streak >= 30 -> Color.parseColor("#FFD700") // Gold
+                streak >= 7 -> Color.parseColor("#FF8C00")  // Orange
+                streak >= 1 -> Color.parseColor("#4A90D9")  // Blue
+                else -> Color.parseColor("#808080")         // Gray
+            }
+        }
+
         private fun createHabitView(context: Context, habit: Habit): RemoteViews {
             val views = RemoteViews(context.packageName, R.layout.widget_habit_item)
 
@@ -109,6 +126,10 @@ class HabitWidgetReceiver : AppWidgetProvider() {
                 else -> ""
             }
             views.setTextViewText(R.id.habit_streak, streakText)
+
+            // Apply dynamic color based on streak
+            val streakColor = getStreakColor(habit.currentStreak)
+            views.setTextColor(R.id.habit_streak, streakColor)
 
             // Set click listener
             val clickIntent = Intent(context, HabitWidgetReceiver::class.java).apply {

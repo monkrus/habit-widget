@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +35,7 @@ import com.habitstreak.app.data.Habit
 import com.habitstreak.app.data.HabitRepository
 import com.habitstreak.app.data.HabitSuggestions
 import com.habitstreak.app.data.PreferencesManager
+import com.habitstreak.app.data.TimeOfDay
 import com.habitstreak.app.ui.components.ConfettiAnimation
 import com.habitstreak.app.utils.AppConfig
 import com.habitstreak.app.utils.HapticFeedback
@@ -275,13 +277,44 @@ fun HabitListScreen(
                         DailyProgressCard(habits = habits)
                     }
 
+                    // Current time of day indicator
+                    item {
+                        CurrentTimeOfDayCard()
+                    }
+
                     if (!isPro && habits.size >= AppConfig.FREE_HABIT_LIMIT) {
                         item {
                             ProBanner(onClick = onUpgradeToPro)
                         }
                     }
 
-                    items(habits, key = { it.id }) { habit ->
+                    // Group habits by time of day
+                    val groupedHabits = habits.groupBy { it.timeOfDay }
+                    val timeOrder = listOf(TimeOfDay.MORNING, TimeOfDay.AFTERNOON, TimeOfDay.EVENING, TimeOfDay.ANYTIME)
+                    val currentTimeOfDay = TimeOfDay.current()
+
+                    // Show habits grouped by time, with current time first
+                    val sortedTimeSlots = timeOrder.sortedBy {
+                        if (it == currentTimeOfDay) 0
+                        else if (it == TimeOfDay.ANYTIME) 3
+                        else timeOrder.indexOf(it)
+                    }
+
+                    for (timeOfDay in sortedTimeSlots) {
+                        val habitsInGroup = groupedHabits[timeOfDay] ?: continue
+                        if (habitsInGroup.isEmpty()) continue
+
+                        // Section header
+                        item(key = "header_${timeOfDay.name}") {
+                            TimeOfDaySectionHeader(
+                                timeOfDay = timeOfDay,
+                                isCurrentTime = timeOfDay == currentTimeOfDay,
+                                completedCount = habitsInGroup.count { it.isCompletedToday || it.isFrozenToday },
+                                totalCount = habitsInGroup.size
+                            )
+                        }
+
+                        items(habitsInGroup, key = { it.id }) { habit ->
                         ReorderableItem(reorderableLazyListState, key = habit.id) { isDragging ->
                         HabitCard(
                             habit = habit,
@@ -328,8 +361,12 @@ fun HabitListScreen(
                                         // Show confetti animation
                                         confettiTrigger++
 
-                                        // Show motivational message
-                                        val message = MotivationalMessages.getMessage(
+                                        // Show motivational message - prefer identity message if available
+                                        val identityMessage = MotivationalMessages.getIdentityMessage(
+                                            habit.identity,
+                                            newStreak
+                                        )
+                                        val message = identityMessage ?: MotivationalMessages.getMessage(
                                             currentStreak = newStreak,
                                             isFirstCompletion = habit.currentStreak == 0
                                         )
@@ -351,7 +388,8 @@ fun HabitListScreen(
                             reorderableState = reorderableLazyListState
                         )
                         }
-                    }
+                        }
+                    } // End of time-of-day for loop
 
                     // Show big suggestion cards (filtered by existing habits)
                     if (isPro || habits.size < AppConfig.FREE_HABIT_LIMIT) {
@@ -697,11 +735,31 @@ fun HabitCard(
 
                 // Name and streak info
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = habit.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = habit.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        // Identity badge
+                        habit.identity?.let { identity ->
+                            val badgeText = MotivationalMessages.getIdentityBadge(identity, habit.currentStreak)
+                            Surface(
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(
+                                    text = badgeText,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
 
                     // Enhanced streak display with emoji
@@ -819,5 +877,107 @@ fun HabitCard(
                 }
             }
         }
+    }
+}
+
+/**
+ * Current time of day indicator card
+ */
+@Composable
+fun CurrentTimeOfDayCard() {
+    val currentTime = TimeOfDay.current()
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = currentTime.emoji,
+                fontSize = 20.sp
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "It's ${currentTime.displayName.lowercase()} time!",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onTertiaryContainer
+            )
+        }
+    }
+}
+
+/**
+ * Section header for time-of-day grouping
+ */
+@Composable
+fun TimeOfDaySectionHeader(
+    timeOfDay: TimeOfDay,
+    isCurrentTime: Boolean,
+    completedCount: Int,
+    totalCount: Int
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = timeOfDay.emoji,
+                fontSize = 18.sp
+            )
+            Text(
+                text = timeOfDay.displayName,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (isCurrentTime) FontWeight.Bold else FontWeight.SemiBold,
+                color = if (isCurrentTime)
+                    MaterialTheme.colorScheme.primary
+                else
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+            )
+            if (isCurrentTime) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = "NOW",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Progress indicator
+        Text(
+            text = "$completedCount/$totalCount",
+            style = MaterialTheme.typography.bodySmall,
+            color = if (completedCount == totalCount && totalCount > 0)
+                MaterialTheme.colorScheme.primary
+            else
+                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            fontWeight = if (completedCount == totalCount && totalCount > 0)
+                FontWeight.Bold
+            else
+                FontWeight.Normal
+        )
     }
 }
