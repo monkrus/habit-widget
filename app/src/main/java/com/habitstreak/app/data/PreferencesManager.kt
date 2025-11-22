@@ -29,6 +29,8 @@ class PreferencesManager(private val context: Context) {
     private val totalFreezesUsedKey = intPreferencesKey("total_freezes_used")
     private val totalXpKey = intPreferencesKey("total_xp")
     private val routineRemindersEnabledKey = booleanPreferencesKey("routine_reminders_enabled")
+    private val onboardingCompletedKey = booleanPreferencesKey("onboarding_completed")
+    private val themeKey = stringPreferencesKey("theme") // "light", "dark", "system"
 
     companion object {
         const val FREE_MONTHLY_FREEZE_LIMIT = 3
@@ -50,6 +52,44 @@ class PreferencesManager(private val context: Context) {
 
     val routineRemindersEnabledFlow: Flow<Boolean> = context.prefsDataStore.data.map { preferences ->
         preferences[routineRemindersEnabledKey] ?: false // Default: disabled
+    }
+
+    val onboardingCompletedFlow: Flow<Boolean> = context.prefsDataStore.data.map { preferences ->
+        preferences[onboardingCompletedKey] ?: false
+    }
+
+    val themeFlow: Flow<String> = context.prefsDataStore.data.map { preferences ->
+        preferences[themeKey] ?: "system" // Default: follow system
+    }
+
+    suspend fun setOnboardingCompleted(completed: Boolean) {
+        context.prefsDataStore.edit { preferences ->
+            preferences[onboardingCompletedKey] = completed
+        }
+    }
+
+    suspend fun setTheme(theme: String) {
+        context.prefsDataStore.edit { preferences ->
+            preferences[themeKey] = theme
+        }
+    }
+
+    suspend fun getTheme(): String {
+        return try {
+            val preferences = context.prefsDataStore.data.first()
+            preferences[themeKey] ?: "system"
+        } catch (e: Exception) {
+            "system"
+        }
+    }
+
+    suspend fun isOnboardingCompleted(): Boolean {
+        return try {
+            val preferences = context.prefsDataStore.data.first()
+            preferences[onboardingCompletedKey] ?: false
+        } catch (e: Exception) {
+            false
+        }
     }
 
     suspend fun setRoutineRemindersEnabled(enabled: Boolean) {
@@ -169,6 +209,18 @@ class PreferencesManager(private val context: Context) {
                     null
                 }
             }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun getUnlockedAchievementIds(): List<String> {
+        return try {
+            val preferences = context.prefsDataStore.data.first()
+            val json = preferences[achievementsKey] ?: "[]"
+            val type = object : TypeToken<List<UnlockedAchievement>>() {}.type
+            val unlocked: List<UnlockedAchievement> = gson.fromJson(json, type)
+            unlocked.map { it.achievementId }
         } catch (e: Exception) {
             emptyList()
         }
