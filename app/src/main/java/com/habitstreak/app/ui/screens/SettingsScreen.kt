@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.habitstreak.app.data.HabitRepository
 import com.habitstreak.app.data.PreferencesManager
+import com.habitstreak.app.notifications.HabitNotificationManager
 import com.habitstreak.app.notifications.NotificationScheduler
 import com.habitstreak.app.utils.CsvExporter
 import kotlinx.coroutines.launch
@@ -38,7 +39,9 @@ fun SettingsScreen(
     var reminderEnabled by remember { mutableStateOf(true) }
     var reminderHour by remember { mutableStateOf(20) }
     var reminderMinute by remember { mutableStateOf(0) }
+    var routineRemindersEnabled by remember { mutableStateOf(false) }
     var showExportSuccess by remember { mutableStateOf(false) }
+    val notificationManager = remember { HabitNotificationManager(context) }
 
     // Load preferences
     LaunchedEffect(Unit) {
@@ -51,6 +54,12 @@ fun SettingsScreen(
         preferencesManager.reminderTimeFlow.collect { (hour, minute) ->
             reminderHour = hour
             reminderMinute = minute
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        preferencesManager.routineRemindersEnabledFlow.collect { enabled ->
+            routineRemindersEnabled = enabled
         }
     }
 
@@ -201,6 +210,60 @@ fun SettingsScreen(
                             )
                         }
                     }
+                }
+            }
+
+            // Time-Based Routine Reminders
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            Icons.Default.Schedule,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.tertiary
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Routine Reminders",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = "Morning (8am), Afternoon (1pm), Evening (8pm)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                    Switch(
+                        checked = routineRemindersEnabled,
+                        onCheckedChange = { enabled ->
+                            routineRemindersEnabled = enabled
+                            scope.launch {
+                                preferencesManager.setRoutineRemindersEnabled(enabled)
+                            }
+                            if (enabled) {
+                                notificationManager.scheduleTimeBasedReminders()
+                            } else {
+                                notificationManager.cancelTimeBasedReminders()
+                            }
+                        }
+                    )
                 }
             }
 

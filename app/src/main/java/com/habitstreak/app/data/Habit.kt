@@ -1,7 +1,51 @@
 package com.habitstreak.app.data
 
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.temporal.ChronoUnit
+
+/**
+ * Time of day for habit grouping
+ */
+enum class TimeOfDay(val displayName: String, val emoji: String) {
+    MORNING("Morning", "🌅"),
+    AFTERNOON("Afternoon", "☀️"),
+    EVENING("Evening", "🌙"),
+    ANYTIME("Anytime", "⏰");
+
+    companion object {
+        /**
+         * Get the current time of day based on system time
+         */
+        fun current(): TimeOfDay {
+            val hour = LocalTime.now().hour
+            return when {
+                hour < 12 -> MORNING
+                hour < 17 -> AFTERNOON
+                else -> EVENING
+            }
+        }
+
+        /**
+         * Suggest a time of day based on habit name
+         */
+        fun suggestFromHabitName(name: String): TimeOfDay {
+            val lowerName = name.lowercase()
+            return when {
+                lowerName.containsAny("morning", "breakfast", "wake", "sunrise") -> MORNING
+                lowerName.containsAny("lunch", "afternoon") -> AFTERNOON
+                lowerName.containsAny("evening", "night", "dinner", "sleep", "bed") -> EVENING
+                lowerName.containsAny("meditat", "journal", "read") -> EVENING
+                lowerName.containsAny("exercise", "workout", "run", "gym", "walk") -> MORNING
+                else -> ANYTIME
+            }
+        }
+
+        private fun String.containsAny(vararg keywords: String): Boolean {
+            return keywords.any { this.contains(it) }
+        }
+    }
+}
 
 data class Habit(
     val id: String = java.util.UUID.randomUUID().toString(),
@@ -11,7 +55,8 @@ data class Habit(
     val completedDates: List<LocalDate> = emptyList(),
     val freezeUsedDates: List<LocalDate> = emptyList(),
     val position: Int = 0,
-    val identity: String? = null // e.g., "Runner", "Reader", "Meditator"
+    val identity: String? = null, // e.g., "Runner", "Reader", "Meditator"
+    val timeOfDay: TimeOfDay = TimeOfDay.ANYTIME // When this habit should be done
 ) {
     val currentStreak: Int
         get() = calculateCurrentStreak()

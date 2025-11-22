@@ -53,6 +53,17 @@
             </intent-filter>
         </receiver>
 
+        <!-- Time-based Reminder Receiver -->
+        <receiver
+            android:name=".notifications.TimeBasedReminderReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.habitstreak.app.MORNING_REMINDER" />
+                <action android:name="com.habitstreak.app.AFTERNOON_REMINDER" />
+                <action android:name="com.habitstreak.app.EVENING_REMINDER" />
+            </intent-filter>
+        </receiver>
+
         <!-- WorkManager initialization -->
         <provider
             android:name="androidx.startup.InitializationProvider"

@@ -27,6 +27,8 @@ class PreferencesManager(private val context: Context) {
     private val freezesUsedThisMonthKey = intPreferencesKey("freezes_used_this_month")
     private val freezeMonthKey = intPreferencesKey("freeze_month") // Track which month the count is for
     private val totalFreezesUsedKey = intPreferencesKey("total_freezes_used")
+    private val totalXpKey = intPreferencesKey("total_xp")
+    private val routineRemindersEnabledKey = booleanPreferencesKey("routine_reminders_enabled")
 
     companion object {
         const val FREE_MONTHLY_FREEZE_LIMIT = 3
@@ -44,6 +46,25 @@ class PreferencesManager(private val context: Context) {
         val hour = preferences[reminderHourKey] ?: 20 // Default: 8 PM
         val minute = preferences[reminderMinuteKey] ?: 0
         Pair(hour, minute)
+    }
+
+    val routineRemindersEnabledFlow: Flow<Boolean> = context.prefsDataStore.data.map { preferences ->
+        preferences[routineRemindersEnabledKey] ?: false // Default: disabled
+    }
+
+    suspend fun setRoutineRemindersEnabled(enabled: Boolean) {
+        context.prefsDataStore.edit { preferences ->
+            preferences[routineRemindersEnabledKey] = enabled
+        }
+    }
+
+    suspend fun getRoutineRemindersEnabled(): Boolean {
+        return try {
+            val preferences = context.prefsDataStore.data.first()
+            preferences[routineRemindersEnabledKey] ?: false
+        } catch (e: Exception) {
+            false
+        }
     }
 
     suspend fun setProVersion(isPro: Boolean) {
@@ -255,6 +276,67 @@ class PreferencesManager(private val context: Context) {
             } else {
                 0
             }
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    // ===== XP & Level System =====
+
+    /**
+     * Flow of user progress (XP and level)
+     */
+    val userProgressFlow: Flow<UserProgress> = context.prefsDataStore.data.map { preferences ->
+        val totalXp = preferences[totalXpKey] ?: 0
+        UserProgress.fromTotalXp(totalXp)
+    }
+
+    /**
+     * Get current user progress
+     */
+    suspend fun getUserProgress(): UserProgress {
+        return try {
+            val preferences = context.prefsDataStore.data.first()
+            val totalXp = preferences[totalXpKey] ?: 0
+            UserProgress.fromTotalXp(totalXp)
+        } catch (e: Exception) {
+            UserProgress()
+        }
+    }
+
+    /**
+     * Add XP and return level up event if leveled up
+     */
+    suspend fun addXp(amount: Int): LevelUpEvent? {
+        val preferences = context.prefsDataStore.data.first()
+        val oldTotalXp = preferences[totalXpKey] ?: 0
+        val newTotalXp = oldTotalXp + amount
+
+        val oldLevel = UserProgress.getLevelFromXp(oldTotalXp)
+        val newLevel = UserProgress.getLevelFromXp(newTotalXp)
+
+        context.prefsDataStore.edit { prefs ->
+            prefs[totalXpKey] = newTotalXp
+        }
+
+        return if (newLevel > oldLevel) {
+            LevelUpEvent(
+                oldLevel = oldLevel,
+                newLevel = newLevel,
+                newTitle = UserProgress.getTitleForLevel(newLevel)
+            )
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Get total XP
+     */
+    suspend fun getTotalXp(): Int {
+        return try {
+            val preferences = context.prefsDataStore.data.first()
+            preferences[totalXpKey] ?: 0
         } catch (e: Exception) {
             0
         }
